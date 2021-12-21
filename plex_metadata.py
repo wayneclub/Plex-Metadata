@@ -70,10 +70,10 @@ if __name__ == "__main__":
         disney.get_metadata(disney.login(), url, plex,
                             title, replace_poster, print_only)
     elif 'tv.apple.com' in url:
-        appletv.get_metadata(get_dynamic_html(
-            url, False), plex, title, replace_poster, print_only)
+        appletv.get_metadata(get_dynamic_html(url), plex,
+                             title, replace_poster, print_only)
     elif 'itunes' in url:
-        itunes.get_metadata(url, plex, title, print_only)
+        itunes.get_metadata(get_dynamic_html(url), plex, title, print_only)
     elif 'video.friday' in url:
         friday.get_metadata(get_dynamic_html(
             url), plex, title, print_only)

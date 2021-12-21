@@ -2,16 +2,18 @@
 This module is for common tool.
 """
 import os
-import re
-import platform
 import json
+import platform
+import re
+import shutil
 from urllib import request
 from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from plexapi.server import PlexServer
-from common.dictionary import translate
+import multiprocessing
+import wget
 
 
 def get_static_html(url):
@@ -62,12 +64,12 @@ def get_dynamic_html(url, headless=True):
 
 
 def import_credential():
-    if os.path.basename(os.getcwd()) == 'Plex-MetaData':
+    if os.path.basename(os.getcwd()) == 'Plex-Metadata':
         credential_path = os.path.join(
             os.getcwd(), 'config/my_credential.json')
     else:
         credential_path = os.path.join(
-            os.getcwd(), 'Plex-MetaData/config/my_credential.json')
+            os.getcwd(), 'Plex-Metadata/config/my_credential.json')
 
     if not os.path.exists(credential_path):
         credential_path = credential_path.replace(
@@ -149,11 +151,40 @@ def text_format(text):
     return text.strip()
 
 
+def download_posters(urls, folder_path):
+    print(f"\n下載海報：\n---------------------------------------------------------------")
+
+    os.makedirs(folder_path, exist_ok=True)
+    cpus = multiprocessing.cpu_count()
+    max_pool_size = 8
+    pool = multiprocessing.Pool(
+        cpus if cpus < max_pool_size else max_pool_size)
+    pool = multiprocessing.Pool(
+        cpus if cpus < max_pool_size else max_pool_size)
+    for url in urls:
+        print('Beginning file download with wget module {n}'.format(n=url))
+        pool.apply_async(download_file, args=(
+            url, os.path.join(folder_path, f'{os.path.basename(url)}.jpg')))
+    pool.close()
+    pool.join()
+
+    print("\n將海報封裝打包：\n---------------------------------------------------------------")
+    print(f'{os.path.basename(folder_path)}.zip')
+    shutil.make_archive(os.path.basename(folder_path), 'zip', folder_path)
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+
+
+def download_file(url, output):
+    wget.download(url, out=output)
+
+
 def kill_process():
     os.system('killall chromedriver > /dev/null 2>&1')
     os.system('killall Google\\ Chrome > /dev/null 2>&1')
-    os.system(
-        "ps -ax | grep 'distnoted agent' | awk '{print $1}' | xargs sudo kill -9")
+    if platform.system() == 'Darwin':
+        os.system(
+            "ps -ax | grep 'distnoted agent' | awk '{print $1}' | xargs sudo kill -9")
 
 
 def save_html(html_source, file='test.html'):
