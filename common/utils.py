@@ -16,7 +16,7 @@ import multiprocessing
 import wget
 
 
-def get_static_html(url):
+def get_static_html(url, json_request=False):
     """Get static html"""
     try:
         headers = {
@@ -24,7 +24,14 @@ def get_static_html(url):
         }
         req = request.Request(url, headers=headers)
         response = request.urlopen(req)
-        return BeautifulSoup(response.read(), 'lxml')
+
+        if json_request:
+            try:
+                return json.loads(response.read())
+            except json.decoder.JSONDecodeError:
+                print("String could not be converted to JSON")
+        else:
+            return BeautifulSoup(response.read(), 'lxml')
 
     except HTTPError as exception:
         print(f"HTTPError: {exception.code}")
@@ -137,6 +144,21 @@ def text_format(text):
         text = re.sub(r'([\u4E00-\u9FFF]) ', '\\1，', text)
         text = re.sub(r' ([\u4E00-\u9FFF])', '，\\1', text)
         text = text.replace('，飾）', ' 飾）')
+        text = text.replace('本季首播.', '')
+        text = text.replace('本季首播。', '')
+        text = text.replace('劇集首播.', '')
+        text = text.replace('劇集首播。', '')
+        text = text.replace('本季首集.', '')
+        text = text.replace('本季首集。', '')
+        text = text.replace('本季第一集.', '')
+        text = text.replace('本季第一集。', '')
+        text = text.replace('本季最後一集.', '')
+        text = text.replace('本季最後一集。', '')
+        text = text.replace('本季最後.', '')
+        text = text.replace('本季最後。', '')
+        text = text.replace('本季最後，', '')
+        text = text.replace('本集中,', '')
+        text = text.replace('本集中，', '')
         text = '。'.join([tmp.strip() for tmp in text.split('。')])
         if len(text) > 100:
             pos = -1
@@ -152,7 +174,7 @@ def text_format(text):
 
 
 def download_posters(urls, folder_path):
-    print(f"\n下載海報：\n---------------------------------------------------------------")
+    print("\n下載海報：\n---------------------------------------------------------------")
 
     os.makedirs(folder_path, exist_ok=True)
     cpus = multiprocessing.cpu_count()
@@ -162,7 +184,6 @@ def download_posters(urls, folder_path):
     pool = multiprocessing.Pool(
         cpus if cpus < max_pool_size else max_pool_size)
     for url in urls:
-        print('Beginning file download with wget module {n}'.format(n=url))
         pool.apply_async(download_file, args=(
             url, os.path.join(folder_path, f'{os.path.basename(url)}.jpg')))
     pool.close()

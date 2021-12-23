@@ -158,6 +158,8 @@ def get_metadata(driver, url, plex, plex_title="", replace_poster="", print_only
                                 f"\n第 {season_index} 季\n{episode['season_synopsis']}")
                             if season_index and not print_only:
                                 show.season(season_index).edit(**{
+                                    "title.value": f'第 {season_index} 季',
+                                    "title.locked": 1,
                                     "summary.value": episode['season_synopsis'],
                                     "summary.locked": 1,
                                 })
@@ -184,8 +186,8 @@ def get_metadata(driver, url, plex, plex_title="", replace_poster="", print_only
                                 show.season(season_index).episode(
                                     episode_index).uploadPoster(url=episode['poster'])
                 driver.quit()
-                download_posters(
-                    list(posters), os.path.join(os.getcwd(), title))
+                # download_posters(
+                #     list(posters), os.path.join(os.getcwd(), title))
 
 
 def get_json_data(driver, episode_id):
@@ -236,7 +238,8 @@ def parse_json(data_url):
                         episode['show_poster'] = image['url']
                     if image['sourceEntity'] == 'program' and image['purpose'] == 'thumbnail':
                         episode['poster'] = image['url']
-                    images.add(image['url'])
+                    if not 'title_treatment' in image['purpose']:
+                        images.add(image['url'])
 
                 return episode, images
 

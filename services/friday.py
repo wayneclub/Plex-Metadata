@@ -24,6 +24,8 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
 
     if not print_only:
         show.season(season_index).edit(**{
+            "title.value": f'第 {season_index} 季',
+            "title.locked": 1,
             "summary.value": season_synopsis,
             "summary.locked": 1,
         })

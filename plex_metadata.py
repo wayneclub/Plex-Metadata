@@ -5,7 +5,7 @@ https://python-plexapi.readthedocs.io/en/latest/index.html
 
 import argparse
 import re
-from services import appletv, baidu, chiblog, custom, disney, friday, hbogo, itunes, mactv, mod, netflix, pixnet, thetvdb, tpcatv, videoland
+from services import amazon, appletv, baidu, chiblog, custom, disney, friday, hbogo, itunes, mactv, mod, netflix, pixnet, thetvdb, tpcatv, videoland
 from common.utils import connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -69,6 +69,9 @@ if __name__ == "__main__":
     elif 'disney' in url:
         disney.get_metadata(disney.login(), url, plex,
                             title, replace_poster, print_only)
+    elif 'amazon' in url:
+        amazon.get_metadata(get_static_html(url), plex,
+                            title, replace_poster, print_only)
     elif 'tv.apple.com' in url:
         appletv.get_metadata(get_dynamic_html(url), plex,
                              title, replace_poster, print_only)
@@ -105,4 +108,4 @@ if __name__ == "__main__":
         custom.replace_episode(plex, title,
                                args.replace, input_summary)
     else:
-        print('目前只支持從Netflix、Disney、HBOGO、Apple TV、iTunes、Friday等取得電影、影集資訊')
+        print("目前只支持從Netflix、Disney、HBOGO、Apple TV、iTunes、Friday等取得電影、影集資訊")

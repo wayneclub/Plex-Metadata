@@ -18,11 +18,16 @@ def get_metadata(html_page, plex, plex_title="", replace_poster="", print_only=F
     if translate:
         show_synopsis = translate_text(show_synopsis)
 
+    show_background = html_page.find(
+        'picture', class_='hero-image-loader').find_all('source')[-1]['srcset']
+
     if show and not print_only and not change_poster_only and season_index == 1:
         show.edit(**{
             "summary.value": show_synopsis,
             "summary.locked": 1,
         })
+        if replace_poster:
+            show.uploadArt(url=show_background)
 
     for season in html_page.find_all('div', class_='season'):
 
@@ -104,6 +109,8 @@ def get_metadata(html_page, plex, plex_title="", replace_poster="", print_only=F
 
             if season_index and episode_index == 1 and not change_poster_only and not print_only:
                 show.season(season_index).edit(**{
+                    "title.value": f'第 {season_index} 季',
+                    "title.locked": 1,
                     "summary.value": season_synopsis,
                     "summary.locked": 1,
                 })
