@@ -196,9 +196,10 @@ def text_format(text):
     return text.strip()
 
 
-def download_posters(urls, folder_path):
+def download_images(urls, folder_path):
     print("\n下載海報：\n---------------------------------------------------------------")
-
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
     os.makedirs(folder_path, exist_ok=True)
     cpus = multiprocessing.cpu_count()
     max_pool_size = 8
@@ -208,15 +209,13 @@ def download_posters(urls, folder_path):
         cpus if cpus < max_pool_size else max_pool_size)
     for url in urls:
         pool.apply_async(download_file, args=(
-            url, os.path.join(folder_path, f'{os.path.basename(url)}.jpg')))
+            url, os.path.join(folder_path, f'{os.path.basename(url)}.png')))
     pool.close()
     pool.join()
 
-    print("\n將海報封裝打包：\n---------------------------------------------------------------")
-    print(f'{os.path.basename(folder_path)}.zip')
-    shutil.make_archive(os.path.basename(folder_path), 'zip', folder_path)
-    if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
+    # print("\n將海報封裝打包：\n---------------------------------------------------------------")
+    # print(f'{os.path.basename(folder_path)}.zip')
+    # shutil.make_archive(os.path.basename(folder_path), 'zip', folder_path)
 
 
 def download_file(url, output):
