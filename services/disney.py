@@ -1,6 +1,7 @@
 import os
+import math
 import re
-from common.utils import compress_image, get_static_html, plex_find_lib, get_network_url, text_format, save_html, download_posters
+from common.utils import compress_image, get_static_html, plex_find_lib, text_format, download_posters
 
 
 def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False):
@@ -32,7 +33,7 @@ def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=Fals
     posters = set()
     for season in data['seasons']['seasons']:
         season_index = season['seasonSequenceNumber']
-        episode_list = season['downloadableEpisodes']
+        episode_list = check_episodes(season, series_url)
         for episode_id in episode_list:
             episode_url = re.sub(r'(.+)DmcSeriesBundle(.+)encodedSeriesId.+',
                                  '\\1DmcVideo\\2contentId/', series_url) + episode_id
@@ -97,6 +98,21 @@ def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=Fals
                 filepath=season_background_file)
             if os.path.exists(season_background_file):
                 os.remove(season_background_file)
+
+
+def check_episodes(season, series_url):
+    episode_num = season['episodes_meta']['hits']
+    episodes = season['downloadableEpisodes']
+    if len(episodes) != episode_num:
+        season_id = season['seasonId']
+        page_size = math.ceil(len(episodes) / 15)
+        episodes = []
+        for page in range(1, page_size+1):
+            episode_page_url = re.sub(r'(.+)DmcSeriesBundle(.+)encodedSeriesId.+',
+                                      '\\1DmcEpisodes\\2seasonId/', series_url) + f'{season_id}/pageSize/15/page/{page}'
+            for episode in get_static_html(episode_page_url, True)['data']['DmcEpisodes']['videos']:
+                episodes.append(episode['contentId'])
+    return episodes
 
 
 def parse_json(data):
