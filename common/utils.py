@@ -5,6 +5,7 @@ import os
 import json
 import platform
 import re
+import time
 import shutil
 from urllib import request
 from urllib.error import HTTPError, URLError
@@ -14,6 +15,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from plexapi.server import PlexServer
 import multiprocessing
 import wget
+from PIL import Image
+from io import BytesIO
 
 
 def get_static_html(url, json_request=False):
@@ -68,6 +71,26 @@ def get_dynamic_html(url, headless=True):
     driver.get(url)
     driver.set_page_load_timeout(60)
     return driver
+
+
+def get_network_url(driver, search_url):
+    url = ''
+    delay = 0
+    logs = []
+    while not url:
+        time.sleep(2)
+        logs += driver.execute_script(
+            "return window.performance.getEntries();")
+
+        url = next((log['name'] for log in logs
+                    if re.search(search_url, log['name'])), None)
+        # print(m3u_file)
+        delay += 1
+
+        if delay > 60:
+            print("找不到data，請重新執行")
+            exit(1)
+    return url
 
 
 def import_credential():
@@ -198,6 +221,13 @@ def download_posters(urls, folder_path):
 
 def download_file(url, output):
     wget.download(url, out=output)
+
+
+def compress_image(url):
+    image_path = f'{os.path.join(os.getcwd(), os.path.basename(url))}.webp'
+    image = Image.open(BytesIO(request.urlopen(url).read()))
+    image.save(image_path, 'webp', optimize=True, quality=100)
+    return image_path
 
 
 def kill_process():

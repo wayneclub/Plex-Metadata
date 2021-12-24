@@ -67,7 +67,7 @@ if __name__ == "__main__":
         hbogo.get_metadata(get_dynamic_html(
             url), plex, title, replace_poster, print_only)
     elif 'disney' in url:
-        disney.get_metadata(disney.login(), url, plex,
+        disney.get_metadata(get_dynamic_html(url), plex,
                             title, replace_poster, print_only)
     elif 'amazon' in url:
         amazon.get_metadata(get_static_html(url), plex,
