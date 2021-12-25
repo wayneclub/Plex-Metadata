@@ -141,12 +141,12 @@ def get_metadata(url, plex, plex_title="", replace_poster="", print_only=False, 
         if not print_only:
             movie = plex_find_lib(plex, 'movie', plex_title, title)
             movie.edit(**{
-                "summary.value": show_synopsis,
+                "summary.value": movie_synopsis,
                 "summary.locked": 1
             })
             if replace_poster:
                 movie_poster_file = compress_image(movie_poster)
-                show.uploadPoster(filepath=movie_poster_file)
+                movie.uploadPoster(filepath=movie_poster_file)
                 if os.path.exists(movie_poster_file):
                     os.remove(movie_poster_file)
 
