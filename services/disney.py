@@ -106,7 +106,7 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
                 if os.path.exists(season_background_file):
                     os.remove(season_background_file)
     elif '/movies' in url:
-        if language == 'hk':
+        if 'hk' in language:
             movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/HK/audience/false/maturity/1850/language/zh-HK/encodedFamilyId/{os.path.basename(url)}'
         else:
             movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/TW/audience/false/maturity/1850/language/zh-Hant/encodedFamilyId/{os.path.basename(url)}'
