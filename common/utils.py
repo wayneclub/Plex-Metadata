@@ -7,6 +7,7 @@ import platform
 import re
 import time
 import shutil
+from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
@@ -214,8 +215,13 @@ def download_images(urls, folder_path):
     pool.join()
 
     print("\n將海報封裝打包：\n---------------------------------------------------------------")
-    print(f'{os.path.basename(folder_path)}.zip')
-    shutil.make_archive(os.path.basename(folder_path), 'zip', folder_path)
+    zipname = os.path.normpath(os.path.basename(folder_path))
+    print(f'{zipname}.zip')
+    shutil.make_archive(zipname,
+                        'zip', os.path.normpath(folder_path))
+    if str(os.getcwd()) != str(Path(folder_path).parent.absolute()):
+        shutil.move(f'{zipname}.zip',
+                    Path(folder_path).parent.absolute())
 
 
 def download_file(url, output):
