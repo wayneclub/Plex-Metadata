@@ -4,7 +4,7 @@ import re
 from common.utils import compress_image, get_static_html, plex_find_lib, text_format, download_images
 
 
-def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster="", print_only=False, download_poster=False):
+def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster="", print_only=False, download_poster=False, output=""):
 
     posters = set()
     if '/series' in url:
@@ -161,7 +161,7 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
     print()
     print('\n'.join(posters))
     if download_poster:
-        download_images(posters, os.path.join(os.getcwd(), title))
+        download_images(posters, os.path.join(output, title))
 
 
 def check_episodes(season, series_url):

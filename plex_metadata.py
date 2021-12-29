@@ -4,6 +4,7 @@ https://python-plexapi.readthedocs.io/en/latest/index.html
 """
 
 import argparse
+import os
 import re
 from services import amazon, appletv, baidu, chiblog, custom, disney, friday, hbogo, itunes, mactv, mod, netflix, pixnet, thetvdb, tpcatv, videoland
 from common.utils import connect_plex, get_static_html, get_dynamic_html
@@ -32,10 +33,15 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--season_num',
                         dest='season_num', type=int, help='季')
 
-    parser.add_argument('-l', '--language', dest='language', help='媒體資訊語言')
+    parser.add_argument('-l', '--language', dest='language', help='詮釋資料語言')
 
     parser.add_argument('-d', '--download_poster', dest='download_poster',
                         nargs='?', const=True, help='下載海報')
+
+    parser.add_argument('-o',
+                        '--output',
+                        dest='output',
+                        help='下載路徑')
 
     args = parser.parse_args()
 
@@ -54,6 +60,10 @@ if __name__ == "__main__":
         season_num = int(args.season_num)
     else:
         season_num = 1
+
+    output = args.output
+    if not output:
+        output = os.getcwd()
 
     plex = ''
     if not print_only:
@@ -74,7 +84,7 @@ if __name__ == "__main__":
             url), plex, title, replace_poster, print_only)
     elif 'disney' in url:
         disney.get_metadata(url, plex, title, args.language, replace_poster,
-                            print_only, download_poster)
+                            print_only, download_poster, output)
     elif 'amazon' in url:
         amazon.get_metadata(get_static_html(url), plex,
                             title, replace_poster, print_only)
