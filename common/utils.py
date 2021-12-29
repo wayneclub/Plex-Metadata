@@ -213,9 +213,9 @@ def download_images(urls, folder_path):
     pool.close()
     pool.join()
 
-    # print("\n將海報封裝打包：\n---------------------------------------------------------------")
-    # print(f'{os.path.basename(folder_path)}.zip')
-    # shutil.make_archive(os.path.basename(folder_path), 'zip', folder_path)
+    print("\n將海報封裝打包：\n---------------------------------------------------------------")
+    print(f'{os.path.basename(folder_path)}.zip')
+    shutil.make_archive(os.path.basename(folder_path), 'zip', folder_path)
 
 
 def download_file(url, output):
