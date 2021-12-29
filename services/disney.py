@@ -4,10 +4,10 @@ import re
 from common.utils import compress_image, get_static_html, plex_find_lib, text_format, download_images
 
 
-def get_metadata(url, plex, plex_title="", replace_poster="", print_only=False, download_poster=False):
+def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster="", print_only=False, download_poster=False):
 
     posters = set()
-    if 'series' in url:
+    if '/series' in url:
         series_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/TW/audience/false/maturity/1850/language/zh-Hant/encodedSeriesId/{os.path.basename(url)}'
         data = get_static_html(series_url, True)['data']['DmcSeriesBundle']
         title = data['series']['text']['title']['full']['series']['default']['content']
@@ -106,7 +106,10 @@ def get_metadata(url, plex, plex_title="", replace_poster="", print_only=False, 
                 if os.path.exists(season_background_file):
                     os.remove(season_background_file)
     elif '/movies' in url:
-        movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/TW/audience/false/maturity/1850/language/zh-Hant/encodedFamilyId/{os.path.basename(url)}'
+        if language == 'hk':
+            movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/HK/audience/false/maturity/1850/language/zh-HK/encodedFamilyId/{os.path.basename(url)}'
+        else:
+            movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/TW/audience/false/maturity/1850/language/zh-Hant/encodedFamilyId/{os.path.basename(url)}'
         data = get_static_html(movie_url, True)[
             'data']['DmcVideoBundle']['video']
 

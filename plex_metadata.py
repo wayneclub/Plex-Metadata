@@ -32,6 +32,8 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--season_num',
                         dest='season_num', type=int, help='季')
 
+    parser.add_argument('-l', '--language', dest='language', help='媒體資訊語言')
+
     parser.add_argument('-d', '--download_poster', dest='download_poster',
                         nargs='?', const=True, help='下載海報')
 
@@ -71,7 +73,7 @@ if __name__ == "__main__":
         hbogo.get_metadata(get_dynamic_html(
             url), plex, title, replace_poster, print_only)
     elif 'disney' in url:
-        disney.get_metadata(url, plex, title, replace_poster,
+        disney.get_metadata(url, plex, title, args.language, replace_poster,
                             print_only, download_poster)
     elif 'amazon' in url:
         amazon.get_metadata(get_static_html(url), plex,
