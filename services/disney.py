@@ -8,7 +8,7 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
 
     posters = set()
     if '/series' in url:
-        if 'hk' in language.lower():
+        if language and 'hk' in language.lower():
             movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/HK/audience/false/maturity/1850/language/zh-HK/encodedSeriesId/{os.path.basename(url)}'
         else:
             series_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/TW/audience/false/maturity/1850/language/zh-Hant/encodedSeriesId/{os.path.basename(url)}'
@@ -101,7 +101,7 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
 
         print()
         backgrounds.remove(show_background)
-        for season_index, poster in enumerate(list(backgrounds)[1:]):
+        for season_index, poster in enumerate(list(backgrounds)[1:], start=1):
             print(poster)
             if replace_poster:
                 season_background_file = compress_image(poster)
