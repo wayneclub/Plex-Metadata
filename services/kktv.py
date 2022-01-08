@@ -16,7 +16,7 @@ def get_metadata(html_page, plex, plex_title="", replace_poster="", print_only=F
 
     print(f"\n{title}\n{show_synopsis}\n{show_poster}")
 
-    if season_index == 1:
+    if not print_only and season_index == 1:
         show.edit(**{
             "summary.value": show_synopsis,
             "summary.locked": 1,
