@@ -6,7 +6,7 @@ https://python-plexapi.readthedocs.io/en/latest/index.html
 import argparse
 import os
 import re
-from services import amazon, appletv, baidu, chiblog, custom, disney, friday, hbogo, itunes, mactv, mod, netflix, pixnet, thetvdb, tpcatv, videoland
+from services import amazon, appletv, baidu, chiblog, custom, disney, friday, myvideo, kktv, hbogo, itunes, mactv, mod, netflix, pixnet, thetvdb, tpcatv, videoland
 from common.utils import connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -95,13 +95,19 @@ if __name__ == "__main__":
         itunes.get_metadata(get_dynamic_html(url), plex, title, print_only)
     elif 'video.friday' in url:
         friday.get_metadata(get_dynamic_html(
-            url), plex, title, print_only)
+            url), plex, title, replace_poster, print_only)
+    elif 'myvideo' in url:
+        myvideo.get_metadata(get_static_html(
+            url), plex, title, replace_poster, print_only)
+    elif 'kktv' in url:
+        kktv.get_metadata(get_static_html(
+            url), plex, title, replace_poster, print_only)
     elif 'mod.cht.com.tw' in url:
         mod.get_metadata(get_dynamic_html(url), plex,
                          title, print_only, season_num)
     elif 'japan.videoland' in url:
         videoland.get_metadata(get_dynamic_html(
-            url), plex, title, print_only, season_num)
+            url), plex, title, replace_poster, print_only, season_num)
     elif 'baidu' in url:
         baidu.get_metadata(get_dynamic_html(
             url), plex, title, print_only, season_num)

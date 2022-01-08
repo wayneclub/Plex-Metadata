@@ -4,3 +4,4 @@ selenium
 opencc
 wget
 plexapi
+orjson

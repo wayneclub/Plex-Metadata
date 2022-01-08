@@ -6,7 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from common.utils import plex_find_lib, text_format
 
 
-def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
+def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False, season_index=1):
 
     title = driver.find_element(By.XPATH, "//h1[@class='title-chi']").text
     print(f"\n{title}")
@@ -29,6 +29,12 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
             "summary.value": season_synopsis,
             "summary.locked": 1,
         })
+
+    poster_url = driver.find_elements(
+        By.XPATH, "//div[@class='photos-content']/img")[-1].get_attribute('src').replace('_M', '')
+
+    if not print_only and replace_poster:
+        show.uploadPoster(url=poster_url)
 
     action = ActionChains(driver)
     for li in driver.find_elements(By.XPATH, "//ul[@class='episode-container']/li"):

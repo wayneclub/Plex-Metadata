@@ -37,6 +37,7 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
                     os.remove(show_background_file)
 
         backgrounds = set()
+        season_num = len(data['seasons']['seasons'])
         for season in data['seasons']['seasons']:
             season_index = season['seasonSequenceNumber']
             episode_list = check_episodes(season, series_url)
@@ -59,6 +60,9 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
                         show_poster_file = compress_image(
                             episode['show_poster'])
                         show.uploadPoster(filepath=show_poster_file)
+                        if season_num == 1:
+                            show.season(season_index).uploadPoster(
+                                filepath=show_poster_file)
                         if os.path.exists(show_poster_file):
                             os.remove(show_poster_file)
 
@@ -103,14 +107,14 @@ def get_metadata(url, plex, plex_title="", language='zh-Hant', replace_poster=""
         backgrounds.remove(show_background)
         for season_index, poster in enumerate(list(backgrounds)[1:], start=1):
             print(poster)
-            if replace_poster:
+            if replace_poster and season_index <= season_num:
                 season_background_file = compress_image(poster)
                 show.season(season_index).uploadArt(
                     filepath=season_background_file)
                 if os.path.exists(season_background_file):
                     os.remove(season_background_file)
     elif '/movies' in url:
-        if 'hk' in language.lower():
+        if language and 'hk' in language.lower():
             movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/HK/audience/false/maturity/1850/language/zh-HK/encodedFamilyId/{os.path.basename(url)}'
         else:
             movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/TW/audience/false/maturity/1850/language/zh-Hant/encodedFamilyId/{os.path.basename(url)}'

@@ -1,12 +1,13 @@
 import re
+import os
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
-from common.utils import plex_find_lib, text_format
+from common.utils import plex_find_lib, save_html, text_format
 
 
-def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
-    title = driver.title.replace('緯來日本台-', '')
+def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False, season_index=1):
+    title = re.sub('-緯來日本台-.+', '', driver.title)
     print(f"\n{title}")
 
     if not print_only:
@@ -54,9 +55,24 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
             driver.execute_script(episode)
             episode_title = f'第 {episode_index} 集'
             html_page = BeautifulSoup(driver.page_source, 'lxml')
+            save_html(html_page)
+            episode_synopsis = ''
+            if html_page.find('h3') and html_page.find('h3').next_sibling:
+                episode_synopsis = html_page.find('h3').next_sibling
+
+            if html_page.find('p'):
+                episode_synopsis = html_page.find(
+                    'p').find_all('br')[-1].next_sibling.strip()
+
             episode_synopsis = text_format(re.sub(
-                r'（[^）]+飾）', '', html_page.find('h3').next_sibling.replace('(', '（').replace(')', '）')))
+                r'（[^）]+飾）', '', episode_synopsis.replace('(', '（').replace(')', '）')))
             print(f"\n{episode_title}\n{episode_synopsis}")
+
+            poster_url = html_page.find(
+                'div', class_='carousel-inner').find('img')['src']
+            poster_url = driver.current_url.replace(
+                os.path.basename(driver.current_url), poster_url)
+            print(poster_url)
 
             if not print_only and episode_index:
                 show.season(season_index).episode(episode_index).edit(**{
@@ -65,4 +81,7 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
                     "summary.value": episode_synopsis,
                     "summary.locked": 1,
                 })
+                if replace_poster and poster_url:
+                    show.season(season_index).episode(
+                        episode_index).uploadPoster(url=poster_url)
     driver.quit()
