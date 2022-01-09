@@ -7,7 +7,7 @@ from common.utils import plex_find_lib, text_format, get_static_html
 def get_metadata(html_page, plex, plex_title="", replace_poster="", print_only=False, season_index=1):
     metadata = html_page.find('script', attrs={'type': 'application/ld+json'})
     data = orjson.loads(str(metadata.string))
-    title = data['name'].strip()
+    title = data['name'].strip().replace('預告', '')
     genre = data['genre'][0]
     if '劇' in genre:
         if not print_only:

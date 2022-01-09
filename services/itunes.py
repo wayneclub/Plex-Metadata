@@ -1,41 +1,38 @@
 import re
-from bs4 import BeautifulSoup
+import logging
+from services.service import Service
 from common.utils import plex_find_lib, text_format
 
 
-def get_metadata(driver, plex, plex_title="", print_only=False):
-    html_page = BeautifulSoup(driver.page_source, 'lxml')
-    driver.quit()
+class iTunes(Service):
+    def __init__(self, args):
+        super().__init__(args)
+        self.logger = logging.getLogger(__name__)
 
-    moive_info = html_page.find('header', class_='movie-header')
+    def get_metadata(self, data):
+        title = data['name']
+        content_rating = f"tw/{data['contentRatingsBySystem']['tw-movies']['name']}"
+        movie_synopsis = text_format(data['description']['standard'])
+        movie_poster = data['artwork']['url'].format(
+            w=data['artwork']['width'], h=data['artwork']['height'], f='webp')
 
-    title = moive_info.find('h1').get_text(strip=True)
-    print(f"\n{title}")
+        print(f"\n{title}\n{content_rating}\n{movie_synopsis}\n{movie_poster}")
 
-    if not print_only:
-        movie = plex_find_lib(plex, 'movie', plex_title, title)
+        if not self.print_only:
+            movie = plex_find_lib(self.plex, 'movie', self.plex_title, title)
+            movie.edit(**{
+                "contentRating.value": content_rating,
+                "contentRating.locked": 1,
+                "summary.value": movie_synopsis,
+                "summary.locked": 1,
+            })
+            if self.replace_poster:
+                movie.uploadPoster(url=movie_poster)
 
-    content_rating = f"tw/{moive_info.find('span', class_='badge').get_text(strip=True)}"
-    print(f"{content_rating}\n")
-
-    movie_synopsis = text_format(moive_info.find('p').get_text(strip=True))
-    print(movie_synopsis + '\n')
-
-    image = html_page.find(
-        'picture', class_='we-artwork we-artwork--downloaded we-artwork--fullwidth')
-
-    poster_url = ''
-    for poster in image.find_all('source'):
-        find_poster = re.search(r' (https://.+536x0w.webp)', poster['srcset'])
-        if find_poster:
-            poster_url = find_poster.group(1)
-            print(poster_url)
-
-    if not print_only:
-        movie.edit(**{
-            "contentRating.value": content_rating,
-            "contentRating.locked": 1,
-            "summary.value": movie_synopsis,
-            "summary.locked": 1,
-        })
-        movie.uploadPoster(url=poster_url)
+    def main(self):
+        movie_id_regex = re.search(r'\/id(\d+)', self.url)
+        movie_id = movie_id_regex.group(1)
+        res = self.session.get(f"{self.url}/?isWebExpV2=true&dataOnly=true")
+        if res.ok:
+            self.get_metadata(
+                res.json()['storePlatformData']['product-dv']['results'][movie_id])

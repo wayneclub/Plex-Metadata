@@ -4,9 +4,13 @@ https://python-plexapi.readthedocs.io/en/latest/index.html
 """
 
 import argparse
+import logging
+from datetime import datetime
 import os
-import re
-from services import amazon, appletv, baidu, chiblog, custom, disney, friday, myvideo, kktv, hbogo, itunes, mactv, mod, netflix, pixnet, thetvdb, tpcatv, videoland
+from services import amazon, appletv, baidu, chiblog, custom, disney, friday, myvideo, kktv, hbogo, itunes, mactv, mod, pixnet, thetvdb, tpcatv, videoland
+from services.netflix import Netflix
+from services.itunes import iTunes
+from services.appletv import AppleTV
 from common.utils import connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -30,8 +34,8 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--print_only', dest='print_only',
                         nargs='?', const=True, help='只印出不要更新')
 
-    parser.add_argument('-s', '--season_num',
-                        dest='season_num', type=int, help='季')
+    parser.add_argument('-s', '--season_index',
+                        dest='season_index', type=int, help='季')
 
     parser.add_argument('-l', '--language', dest='language', help='詮釋資料語言')
 
@@ -42,8 +46,31 @@ if __name__ == "__main__":
                         '--output',
                         dest='output',
                         help='下載路徑')
+    parser.add_argument(
+        '-debug',
+        '--debug',
+        action='store_true',
+        help="enable debug logging",
+    )
 
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(
+            format='%(asctime)s - %(name)s - %(lineno)d - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            level=logging.DEBUG,
+            handlers=[
+                logging.FileHandler(
+                    f"Subtitle-Downloader_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"),
+                logging.StreamHandler()
+            ]
+        )
+    else:
+        logging.basicConfig(
+            format='%(message)s',
+            level=logging.INFO,
+        )
 
     url = args.url
     title = args.title
@@ -56,10 +83,10 @@ if __name__ == "__main__":
     if title:
         title = title.strip()
 
-    if args.season_num:
-        season_num = int(args.season_num)
+    if args.season_index:
+        season_index = int(args.season_index)
     else:
-        season_num = 1
+        season_index = 1
 
     output = args.output
     if not output:
@@ -70,15 +97,17 @@ if __name__ == "__main__":
         plex = connect_plex()
 
     if 'netflix' in url:
-        change_poster_only = False
-        if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', url):
-            change_poster_only = True
-        if 'sg-zh' in url:
-            netflix.get_metadata(get_static_html(url), plex,
-                                 title, replace_poster, print_only, season_num, change_poster_only, translate=True)
-        else:
-            netflix.get_metadata(get_static_html(url), plex,
-                                 title, replace_poster, print_only, season_num, change_poster_only)
+        netflix = Netflix(args)
+        netflix.main()
+        # change_poster_only = False
+        # if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', url):
+        #     change_poster_only = True
+        # if 'sg-zh' in url:
+        #     netflix.get_metadata(get_static_html(url), plex,
+        #                          title, replace_poster, print_only, season_index, change_poster_only, translate=True)
+        # else:
+        #     netflix.get_metadata(get_static_html(url), plex,
+        #                          title, replace_poster, print_only, season_index, change_poster_only)
     elif 'hbogo' in url:
         hbogo.get_metadata(get_dynamic_html(
             url), plex, title, replace_poster, print_only)
@@ -89,10 +118,14 @@ if __name__ == "__main__":
         amazon.get_metadata(get_static_html(url), plex,
                             title, replace_poster, print_only)
     elif 'tv.apple.com' in url:
-        appletv.get_metadata(get_dynamic_html(url), plex,
-                             title, replace_poster, print_only)
-    elif 'itunes' in url:
-        itunes.get_metadata(get_dynamic_html(url), plex, title, print_only)
+        # appletv.get_metadata(get_dynamic_html(url), plex,
+        #                      title, replace_poster, print_only)
+        appletv = AppleTV(args)
+        appletv.main()
+    elif 'itunes.apple.com' in url:
+        itunes = iTunes(args)
+        itunes.main()
+        # itunes.get_metadata(get_dynamic_html(url), plex, title, print_only)
     elif 'video.friday' in url:
         friday.get_metadata(get_dynamic_html(
             url), plex, title, replace_poster, print_only)
@@ -104,28 +137,28 @@ if __name__ == "__main__":
             url), plex, title, replace_poster, print_only)
     elif 'mod.cht.com.tw' in url:
         mod.get_metadata(get_dynamic_html(url), plex,
-                         title, print_only, season_num)
+                         title, print_only, season_index)
     elif 'japan.videoland' in url:
         videoland.get_metadata(get_dynamic_html(
-            url), plex, title, replace_poster, print_only, season_num)
+            url), plex, title, replace_poster, print_only, season_index)
     elif 'baidu' in url:
         baidu.get_metadata(get_dynamic_html(
-            url), plex, title, print_only, season_num)
+            url), plex, title, print_only, season_index)
     elif 'thetvdb' in url:
         thetvdb.get_metadata(get_dynamic_html(
-            url), plex, title, replace_poster, print_only, season_num)
+            url), plex, title, replace_poster, print_only, season_index)
     elif 'chiblog' in url:
         chiblog.get_metadata(get_dynamic_html(
-            url), plex, title, print_only, season_num)
+            url), plex, title, print_only, season_index)
     elif 'candybear98.pixnet.net' in url:
         pixnet.get_metadata(get_static_html(
-            url), plex, title, print_only, season_num)
+            url), plex, title, print_only, season_index)
     elif 'tpcatv' in url:
         tpcatv.get_metadata(get_dynamic_html(
-            url), plex, title, print_only, season_num)
+            url), plex, title, print_only, season_index)
     elif 'mactv' in url:
         mactv.get_metadata(get_dynamic_html(
-            url), plex, title, print_only, season_num)
+            url), plex, title, print_only, season_index)
     elif replace and title:
         custom.replace_episode(plex, title,
                                args.replace, input_summary)
