@@ -31,7 +31,7 @@ class Netflix(Service):
         }
 
     def get_build(self, cookies):
-        BUILD_REGEX = r'"BUILD_IDENTIFIER":"([a-z0-9]+)"'
+        build_regex = r'"BUILD_IDENTIFIER":"([a-z0-9]+)"'
 
         session = requests.Session()
         session.headers = {
@@ -45,15 +45,15 @@ class Netflix(Service):
             "Accept-Language": "en,en-US;q=0.9",
         }
 
-        r = session.get("https://www.netflix.com/browse", cookies=cookies)
+        res = session.get("https://www.netflix.com/browse", cookies=cookies)
 
-        if not re.search(BUILD_REGEX, r.text):
+        if not re.search(build_regex, res.text):
             print(
                 "cannot get BUILD_IDENTIFIER from the cookies you saved from the browser..."
             )
             sys.exit()
 
-        return re.search(BUILD_REGEX, r.text).group(1)
+        return re.search(build_regex, res.text).group(1)
 
     def save(self, cookies, build):
         cookie_data = {}
@@ -105,60 +105,45 @@ class Netflix(Service):
 
         return cookies, build
 
-    def shakti_api(self, nfid):
-        url = f"https://www.netflix.com/api/shakti/{self.build}/metadata"
+    def shakti_api(self, netflix_id):
+        url = f"https://www.netflix.com/nq/website/memberapi/{self.build}/metadata?movieid={netflix_id}&imageFormat=webp&withSize=true&materialize=true&_=1641798218310"
         headers = {
             "Accept": "*/*",
             "Accept-Encoding": "gzip, deflate, br",
-            "Accept-Language": "es,ca;q=0.9,en;q=0.8",
+            "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "Host": "www.netflix.com",
             "Pragma": "no-cache",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36",
-            "X-Netflix.browserName": "Chrome",
-            "X-Netflix.browserVersion": "79",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
+            "X-Netflix.browserName": "Safari",
+            "X-Netflix.browserVersion": "15",
             "X-Netflix.clientType": "akira",
-            "X-Netflix.esnPrefix": "NFCDCH-02-",
-            "X-Netflix.osFullName": "Windows 10",
-            "X-Netflix.osName": "Windows",
-            "X-Netflix.osVersion": "10.0",
-            "X-Netflix.playerThroughput": "1706",
-            "X-Netflix.uiVersion": self.build,
+            "X-Netflix.osFullName": "Mac OS X",
+            "X-Netflix.osName": "Mac OS X",
+            "X-Netflix.osVersion": "10.15.7"
         }
 
-        params = {
-            "movieid": nfid,
-            "drmSystem": "widevine",
-            "isWatchlistEnabled": "false",
-            "isShortformEnabled": "false",
-            "isVolatileBillboardsEnabled": "false",
-            "languages": self.config["metada_language"],
-        }
+        resp = requests.get(
+            url=url, headers=headers, cookies=self.cookies
+        )
 
-        while True:
-            resp = requests.get(
-                url=url, headers=headers, params=params, cookies=self.cookies
+        if resp.ok:
+            return resp.json()
+        elif resp.status_code == 401:
+            self.logger.warning("401 Unauthorized, cookies is invalid.")
+        elif resp.text.strip() == "":
+            self.logger.error(
+                "title is not available in your Netflix region.")
+            exit(-1)
+        else:
+            # os.remove(self.config["cookies_file"])
+            self.logger.warning(
+                "Error getting metadata: Cookies expired\nplease fetch new cookies.txt"
             )
-
-            if resp.status_code == 401:
-                self.logger.warning("401 Unauthorized, cookies is invalid.")
-            elif resp.text.strip() == "":
-                self.logger.error(
-                    "title is not available in your Netflix region.")
-                exit(-1)
-
-            try:
-                return resp.json()
-
-            except Exception:
-                # os.remove(self.config["cookies_file"])
-                self.logger.warning(
-                    "Error getting metadata: Cookies expired\nplease fetch new cookies.txt"
-                )
-                exit(-1)
+            exit(-1)
 
     def get_metadata(self, data):
         title = data['title']
