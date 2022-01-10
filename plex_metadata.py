@@ -7,10 +7,12 @@ import argparse
 import logging
 from datetime import datetime
 import os
-from services import amazon, appletv, baidu, chiblog, custom, disney, friday, myvideo, kktv, hbogo, itunes, mactv, mod, pixnet, thetvdb, tpcatv, videoland
+from services import amazon, baidu, chiblog, custom, friday, myvideo, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
 from services.netflix import Netflix
 from services.itunes import iTunes
 from services.appletv import AppleTV
+from services.hbogoasia import HBOGOAsia
+from services.disneyplus import DisneyPlus
 from common.utils import connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -37,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--season_index',
                         dest='season_index', type=int, help='季')
 
-    parser.add_argument('-l', '--language', dest='language', help='詮釋資料語言')
+    parser.add_argument('-region', '--region', dest='region', help='詮釋資料地區')
 
     parser.add_argument('-d', '--download_poster', dest='download_poster',
                         nargs='?', const=True, help='下載海報')
@@ -108,18 +110,20 @@ if __name__ == "__main__":
         # else:
         #     netflix.get_metadata(get_static_html(url), plex,
         #                          title, replace_poster, print_only, season_index, change_poster_only)
-    elif 'hbogo' in url:
-        hbogo.get_metadata(get_dynamic_html(
-            url), plex, title, replace_poster, print_only)
+    elif 'hbogoasia' in url:
+        hbogoasia = HBOGOAsia(args)
+        hbogoasia.main()
+        # hbogo.get_metadata(get_dynamic_html(
+        #     url), plex, title, replace_poster, print_only)
     elif 'disney' in url:
-        disney.get_metadata(url, plex, title, args.language, replace_poster,
-                            print_only, download_poster, output)
+        # disney.get_metadata(url, plex, title, args.language, replace_poster,
+        #                     print_only, download_poster, output)
+        disneyplus = DisneyPlus(args)
+        disneyplus.main()
     elif 'amazon' in url:
         amazon.get_metadata(get_static_html(url), plex,
                             title, replace_poster, print_only)
     elif 'tv.apple.com' in url:
-        # appletv.get_metadata(get_dynamic_html(url), plex,
-        #                      title, replace_poster, print_only)
         appletv = AppleTV(args)
         appletv.main()
     elif 'itunes.apple.com' in url:

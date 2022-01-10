@@ -6,8 +6,9 @@ import json
 from os.path import dirname
 from http.cookiejar import MozillaCookieJar
 import requests
+from bs4 import BeautifulSoup
 from services.service import Service
-from common.utils import plex_find_lib, text_format, get_static_html
+from common.utils import plex_find_lib, save_html, text_format
 
 
 class Netflix(Service):
@@ -171,11 +172,14 @@ class Netflix(Service):
 
             print(f"\n{title}\n{show_synopsis}\n{show_poster}\n{show_background}")
 
-            html_page = get_static_html(self.url)
             season_synopsis_list = []
-            for season in html_page.find_all('div', class_='season'):
-                season_synopsis_list.append(season.find(
-                    'p', class_='season-synopsis').get_text(strip=True))
+            res = self.session.get(self.url)
+            if res.ok:
+                html_page = BeautifulSoup(res.text, 'lxml')
+
+                for season in html_page.find_all('div', class_='season'):
+                    season_synopsis_list.append(season.find(
+                        'p', class_='season-synopsis').get_text(strip=True))
 
             if not self.print_only:
                 show = plex_find_lib(self.plex, 'show', self.plex_title, title)
@@ -190,7 +194,10 @@ class Netflix(Service):
 
             for season in data['seasons']:
                 season_regex = re.search(r'S(\d+)', season['shortName'])
-                season_index = int(season_regex.group(1))
+                if season_regex:
+                    season_index = int(season_regex.group(1))
+                else:
+                    season_index = self.season_index
                 season_title = season['title']
                 season_synopsis = text_format(
                     season_synopsis_list[season['seq']-1])
@@ -211,7 +218,7 @@ class Netflix(Service):
                     episode_index = episode['seq']
                     episode_title = episode['title']
 
-                    if re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
+                    if not self.print_only and re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
                         episode_title = show.season(
                             season_index).episode(episode_index).title
 
@@ -234,6 +241,7 @@ class Netflix(Service):
                             show.season(season_index).episode(
                                 episode_index).uploadPoster(url=episode_poster)
         elif data['type'] == 'movie':
+            # save_html(data)
             movie_synopsis = text_format(data['synopsis'])
             movie_background = next(
                 img['url'] for img in data['storyart'] if img['w'] == 1920)
