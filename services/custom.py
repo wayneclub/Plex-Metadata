@@ -38,6 +38,7 @@ def replace_episode(plex, plex_title, language="", input_summary=""):
             if input_summary:
                 # episode_title = text_format(summary[index-1].split('：')[0])
                 # episode_summary = text_format(summary[index-1].split('：')[1])
+                # episode_title = text_format(summary[index-1])
                 episode_summary = text_format(summary[index-1])
             else:
                 if language == 'cn':

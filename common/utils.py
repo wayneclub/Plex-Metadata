@@ -142,7 +142,7 @@ def plex_find_lib(plex, lib_type, plex_title="", title=""):
     return lib
 
 
-def text_format(text):
+def text_format(text, trim=False):
     text = text.strip()
     if re.search(r'[\u4E00-\u9FFF]', text):
         text = text.replace('(', '（')
@@ -164,10 +164,11 @@ def text_format(text):
         text = text.replace('  ', ' ')
         text = text.replace('（End）', '')
         text = text.replace('飾演）', '飾）')
-        text = text.replace('飾）', ' 飾）')
-        text = re.sub(r'([\u4E00-\u9FFF]) ', '\\1，', text)
-        text = re.sub(r' ([\u4E00-\u9FFF])', '，\\1', text)
         text = text.replace('，飾）', ' 飾）')
+        text = text.replace('飾）', ' 飾）')
+        text = text.replace('  飾）', ' 飾）')
+        # text = re.sub(r'([\u4E00-\u9FFF]) ', '\\1，', text)
+        # text = re.sub(r' ([\u4E00-\u9FFF])', '，\\1', text)
         text = text.replace('本季首播.', '')
         text = text.replace('本季首播。', '')
         text = text.replace('劇集首播.', '')
@@ -184,7 +185,8 @@ def text_format(text):
         text = text.replace('本集中,', '')
         text = text.replace('本集中，', '')
         text = '。'.join([tmp.strip() for tmp in text.split('。')])
-        if len(text) > 100:
+
+        if trim and len(text) > 100:
             pos = -1
             if '。' in text[:100]:
                 pos = text[:100].rindex('。') + 1

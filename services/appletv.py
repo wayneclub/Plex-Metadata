@@ -123,7 +123,6 @@ class AppleTV(Service):
             html_page = BeautifulSoup(res.text, 'lxml')
             data = orjson.loads(html_page.find(
                 'script', id='shoebox-uts-api').string.strip())
-            key = next(key for key in list(data.keys())
-                       if f'{os.path.basename(self.url)}.caller.web' in key)
-
-            self.get_metadata(orjson.loads(data[key])['d']['data']['content'])
+            id = next(key for key in list(data.keys())
+                      if f'{os.path.basename(self.url)}.caller.web' in key)
+            self.get_metadata(orjson.loads(data[id])['d']['data']['content'])

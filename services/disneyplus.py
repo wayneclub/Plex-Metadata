@@ -142,7 +142,7 @@ class DisneyPlus(Service):
 
             if res.ok:
                 data = res.json()['data']['DmcVideoBundle']['video']
-
+                # print(data)
                 movie_id = data['contentId']
                 title = data['text']['title']['full']['program']['default']['content'].strip(
                 )

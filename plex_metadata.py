@@ -13,6 +13,7 @@ from services.itunes import iTunes
 from services.appletv import AppleTV
 from services.hbogoasia import HBOGOAsia
 from services.disneyplus import DisneyPlus
+from services.iqiyi import IQIYI
 from common.utils import connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -130,6 +131,9 @@ if __name__ == "__main__":
         itunes = iTunes(args)
         itunes.main()
         # itunes.get_metadata(get_dynamic_html(url), plex, title, print_only)
+    elif 'iq.com' in url:
+        iqiyi = IQIYI(args)
+        iqiyi.main()
     elif 'video.friday' in url:
         friday.get_metadata(get_dynamic_html(
             url), plex, title, replace_poster, print_only)

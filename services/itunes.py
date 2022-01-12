@@ -11,7 +11,9 @@ class iTunes(Service):
 
     def get_metadata(self, data):
         title = data['name']
-        content_rating = f"tw/{data['contentRatingsBySystem']['tw-movies']['name']}"
+        content_rating = ''
+        if 'tw-movies' in data['contentRatingsBySystem'] and data['contentRatingsBySystem']['tw-movies']['name'] != '未經分級':
+            content_rating = f"tw/{data['contentRatingsBySystem']['tw-movies']['name']}"
         movie_synopsis = text_format(data['description']['standard'])
         movie_poster = data['artwork']['url'].format(
             w=data['artwork']['width'], h=data['artwork']['height'], f='webp')
@@ -20,12 +22,19 @@ class iTunes(Service):
 
         if not self.print_only:
             movie = plex_find_lib(self.plex, 'movie', self.plex_title, title)
-            movie.edit(**{
-                "contentRating.value": content_rating,
-                "contentRating.locked": 1,
-                "summary.value": movie_synopsis,
-                "summary.locked": 1,
-            })
+            if content_rating:
+                movie.edit(**{
+                    "contentRating.value": content_rating,
+                    "contentRating.locked": 1,
+                    "summary.value": movie_synopsis,
+                    "summary.locked": 1,
+                })
+            else:
+                movie.edit(**{
+                    "summary.value": movie_synopsis,
+                    "summary.locked": 1,
+                })
+
             if self.replace_poster:
                 movie.uploadPoster(url=movie_poster)
 
