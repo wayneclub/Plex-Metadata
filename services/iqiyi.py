@@ -19,7 +19,7 @@ class IQIYI(Service):
             season_index = int(convert_chinese_number(
                 season_search.group(2)))
         else:
-            season_index = self.season_index
+            season_index = 1
 
         show_synopsis = text_format(data['videoAlbumInfo']['desc'])
         show_poster = re.sub(r'(.+)_\d+_\d+\.webp', 'https:\\1_2000_3000.webp',
@@ -32,6 +32,11 @@ class IQIYI(Service):
             show.edit(**{
                 "summary.value": show_synopsis,
                 "summary.locked": 1,
+            })
+
+            show.season(season_index).edit(**{
+                "title.value": f'第 {season_index} 季',
+                "title.locked": 1,
             })
 
             if self.replace_poster:

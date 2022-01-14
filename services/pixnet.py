@@ -20,7 +20,7 @@ def get_metadata(html_page, plex, plex_title="", print_only=False, season_index=
                     episode_regex.group(3).strip())
 
             episode_synopsis = text_format(translate_text(episode.parent.find_next(
-                'p').get_text(strip=True)))
+                'p').get_text(strip=True)), trim=True)
             # episode_synopsis = episode_synopsis.replace('樸', '朴')
             # episode_synopsis = episode_synopsis.replace('熙載', '熙釮')
             # episode_synopsis = episode_synopsis.replace('道真', '燾珍')

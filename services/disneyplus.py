@@ -26,7 +26,7 @@ class DisneyPlus(Service):
 
         posters = set()
         if '/series' in self.url:
-            if self.region and 'HK' in self.region():
+            if self.region and 'HK' in self.region:
                 series_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/{self.region}/audience/false/maturity/1850/language/zh-HK/encodedSeriesId/{os.path.basename(self.url)}'
             else:
                 series_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/{self.region}/audience/false/maturity/1850/language/zh-Hant/encodedSeriesId/{os.path.basename(self.url)}'

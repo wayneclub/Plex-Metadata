@@ -21,7 +21,7 @@ class Service(object):
         if args.season_index:
             self.season_index = int(args.season_index)
         else:
-            self.season_index = 1
+            self.season_index = None
 
         if not self.print_only:
             self.plex = connect_plex()

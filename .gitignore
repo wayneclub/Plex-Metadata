@@ -1,9 +1,10 @@
 .DS_Store
 __pycache__/
 *.pyc
-cookies.txt
 *.log
 *.html
 *.js
+cookies.txt
+summary.txt
 test.py
 my_credential.json

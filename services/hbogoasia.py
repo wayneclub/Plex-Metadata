@@ -33,7 +33,126 @@ class HBOGOAsia(Service):
 
     def get_metadata(self):
         if '/sr' in self.url:
-            print()
+            series_id_regex = re.search(
+                r'https:\/\/www\.hbogoasia.+\/sr(\d+)', self.url)
+            if series_id_regex:
+                series_id = series_id_regex.group(1)
+                series_url = self.api['tvseason'].format(
+                    parent_id=series_id, territory=self.territory)
+            else:
+                self.logger.error("\nSeries not found!")
+                exit(1)
+
+            res = self.session.get(series_url)
+            if res.ok:
+                season_list = res.json()['results']
+                self.logger.debug(season_list)
+                if len(season_list) > 0:
+                    if season_list[0]['metadata']['titleInformations'][-1]['lang'] != 'ENG':
+                        title = season_list[0]['metadata']['titleInformations'][-1]['name']
+                        show_synopsis = season_list[0]['metadata']['titleInformations'][-1]['summary']
+                    else:
+                        title = season_list[0]['metadata']['titleInformations'][0]['name']
+                        show_synopsis = season_list[0]['metadata']['titleInformations'][0]['summary']
+                    title = re.sub(r'\(第\d+季\)', '', title).strip()
+                    show_synopsis = text_format(show_synopsis)
+                else:
+                    self.logger.info(
+                        "\nThe series isn't available in this region.")
+
+                title = re.sub(r'S\d+', '', title).strip()
+
+                show_poster = season_list[0]['imagePortrait']
+                show_background = season_list[0]['image']
+
+                print(
+                    f"\n{title}\n{show_synopsis}\n{show_poster}\n{show_background}")
+
+                if not self.print_only:
+                    show = plex_find_lib(
+                        self.plex, 'show', self.plex_title, title)
+                    show.edit(**{
+                        "summary.value": show_synopsis,
+                        "summary.locked": 1,
+                    })
+
+                    if self.replace_poster:
+                        show.uploadPoster(url=show_poster)
+                        show.uploadArt(url=show_background)
+
+                for season in season_list:
+                    season_index = season['seasonNumber']
+                    season_title = f'第 {season_index} 季'
+
+                    season_url = self.api['tvepisode'].format(
+                        parent_id=season['contentId'], territory=self.territory)
+                    self.logger.debug(season_url)
+
+                    for image in season['materials']:
+                        if 'largescreen_thumbnail' in image['href']:
+                            season_background = image['href']
+                        if 'portrait' in image['href']:
+                            show_poster = image['href']
+                    season_synopsis = text_format(next((title_info['summary'] for title_info in season['metadata']['titleInformations']
+                                                        if title_info['lang'] == 'CHN')))
+                    if not re.search(r'[\u4E00-\u9FFF]', season_synopsis):
+                        season_synopsis = text_format(
+                            show.season(season_index).summary)
+
+                    print(
+                        f"\n{season_title}\n{season_synopsis}\n{season_background}")
+
+                    if season_index and not self.print_only:
+                        if season_index == 1 and re.search(r'[\u4E00-\u9FFF]', season_synopsis):
+                            show.edit(**{
+                                "summary.value": season_synopsis,
+                                "summary.locked": 1,
+                            })
+                        show.season(season_index).edit(**{
+                            "title.value": season_title,
+                            "title.locked": 1,
+                            "summary.value": season_synopsis,
+                            "summary.locked": 1,
+                        })
+                        if self.replace_poster:
+                            if len(season_list) == 1:
+                                show.uploadArt(url=season_background)
+                            show.season(season_index).uploadArt(
+                                url=season_background)
+
+                    episode_res = self.session.get(season_url)
+                    if episode_res.ok:
+                        episode_list = episode_res.json()['results']
+                        self.logger.debug(episode_list)
+                        for episode in episode_list:
+
+                            episode_index = episode['episodeNumber']
+
+                            episode_title = f'第 {episode_index} 集'
+
+                            episode_synopsis = text_format(next((title_info['description'] for title_info in episode['metadata']['titleInformations']
+                                                                 if title_info['lang'] == 'CHN')))
+
+                            episode_poster = episode['image']
+
+                            if not self.print_only and re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
+                                episode_title = text_format(show.season(
+                                    season_index).episode(episode_index).title)
+
+                            print(
+                                f"\n{episode_title}\n{episode_synopsis}\n{episode_poster}")
+
+                            if season_index and episode_index and not self.print_only:
+                                show.season(season_index).episode(episode_index).edit(**{
+                                    "title.value": episode_title,
+                                    "title.locked": 1,
+                                    "summary.value": episode_synopsis,
+                                    "summary.locked": 1,
+                                })
+                                if self.replace_poster:
+                                    show.season(season_index).episode(
+                                        episode_index).uploadPoster(url=episode_poster)
+
         else:
             content_id = os.path.basename(self.url)
             movie_url = self.api['movie'].format(

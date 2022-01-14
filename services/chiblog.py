@@ -41,11 +41,9 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
                 episode.next_sibling.find_next('span').get_text(strip=True))
 
         if episode.next_sibling and episode.next_sibling.name == 'span' and not re.search(r'（(大)*結局）', episode.next_sibling.text):
-            episode_synopsis = text_format(
-                episode.next_sibling.get_text(strip=True))
+            episode_synopsis = episode.next_sibling.get_text(strip=True)
         elif episode.next_sibling and episode.next_sibling.name == 'br':
-            episode_synopsis = text_format(
-                episode.next_sibling.next_sibling)
+            episode_synopsis = episode.next_sibling.next_sibling
         # elif episode.next_sibling and isinstance(episode.next_sibling, str):
         #     if episode.next_sibling.next.name == 'span':
         #         episode_synopsis = text_format(
@@ -54,10 +52,10 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
         #         episode_synopsis = text_format(episode.next_sibling)
 
         if episode.parent.next_sibling.name == 'div' or episode.parent.next_sibling.name == 'p':
-            episode_synopsis = text_format(
-                episode.parent.next_sibling.get_text(strip=True))
+            episode_synopsis = episode.parent.next_sibling.get_text(strip=True)
 
-        episode_synopsis = translate_text(episode_synopsis)
+        episode_synopsis = text_format(
+            translate_text(episode_synopsis), trim=True)
 
         print(f"\n{episode_title}\n{episode_synopsis}")
 

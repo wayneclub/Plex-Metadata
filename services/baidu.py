@@ -26,7 +26,7 @@ def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):
                 season_index).episode(episode_index).title
 
         episode_synopsis = text_format(translate_text(
-            episode.find_next('dd').get_text(strip=True)))
+            episode.find_next('dd').get_text(strip=True)), trim=True)
 
         print(f"\n{episode_title}\n{episode_synopsis}")
 

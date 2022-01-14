@@ -13,6 +13,7 @@ from services.itunes import iTunes
 from services.appletv import AppleTV
 from services.hbogoasia import HBOGOAsia
 from services.disneyplus import DisneyPlus
+from services.primevideo import PrimeVideo
 from services.iqiyi import IQIYI
 from common.utils import connect_plex, get_static_html, get_dynamic_html
 
@@ -102,28 +103,18 @@ if __name__ == "__main__":
     if 'netflix' in url:
         netflix = Netflix(args)
         netflix.main()
-        # change_poster_only = False
-        # if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', url):
-        #     change_poster_only = True
-        # if 'sg-zh' in url:
-        #     netflix.get_metadata(get_static_html(url), plex,
-        #                          title, replace_poster, print_only, season_index, change_poster_only, translate=True)
-        # else:
-        #     netflix.get_metadata(get_static_html(url), plex,
-        #                          title, replace_poster, print_only, season_index, change_poster_only)
     elif 'hbogoasia' in url:
         hbogoasia = HBOGOAsia(args)
         hbogoasia.main()
-        # hbogo.get_metadata(get_dynamic_html(
-        #     url), plex, title, replace_poster, print_only)
     elif 'disney' in url:
-        # disney.get_metadata(url, plex, title, args.language, replace_poster,
-        #                     print_only, download_poster, output)
         disneyplus = DisneyPlus(args)
         disneyplus.main()
     elif 'amazon' in url:
         amazon.get_metadata(get_static_html(url), plex,
                             title, replace_poster, print_only)
+    elif 'primevideo' in url:
+        primevideo = PrimeVideo(args)
+        primevideo.main()
     elif 'tv.apple.com' in url:
         appletv = AppleTV(args)
         appletv.main()

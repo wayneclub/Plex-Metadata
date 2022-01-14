@@ -187,30 +187,37 @@ class Netflix(Service):
                     show.uploadPoster(url=show_poster)
                     show.uploadArt(url=show_background)
 
-            for season in data['seasons']:
-                season_regex = re.search(r'第 (\d+) 季', season['shortName'])
-                if season_regex:
-                    season_index = int(season_regex.group(1))
-                else:
-                    season_index = self.season_index
+            episode_seq = 0
+            for index, season in enumerate(data['seasons']):
+                season_index = season['seq']
                 season_title = season['title']
                 season_synopsis = text_format(
-                    season_synopsis_list[season['seq']-1])
+                    season_synopsis_list[index])
+
+                if index > 0:
+                    episode_seq += len(data['seasons'][index-1]['episodes'])
 
                 print(f"\n{season_title}\n{season_synopsis}")
 
                 if not self.print_only:
-                    show.season(season_index).edit(**{
-                        "title.value": season_title,
-                        "title.locked": 1,
-                        "summary.value": season_synopsis,
-                        "summary.locked": 1,
-                    })
-                    if self.replace_poster and season_index == 1:
-                        show.season(season_index).uploadPoster(url=show_poster)
+                    if not self.season_index or self.season_index and self.season_index == season_index:
+                        show.season(season_index).edit(**{
+                            "title.value": season_title,
+                            "title.locked": 1,
+                            "summary.value": season_synopsis,
+                            "summary.locked": 1,
+                        })
+                        if self.replace_poster and season_index == 1:
+                            show.season(season_index).uploadPoster(
+                                url=show_poster)
 
-                for episode in season['episodes']:
-                    episode_index = episode['seq']
+                for index, episode in enumerate(season['episodes'], start=1):
+                    if episode['seq'] > episode_seq:
+                        episode_index = episode['seq'] - episode_seq
+                    elif index != episode['seq']:
+                        episode_index = index
+                    else:
+                        episode_index = episode['seq']
                     episode_title = episode['title']
 
                     if not self.print_only and re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
@@ -225,16 +232,17 @@ class Netflix(Service):
                         f"\n第 {season_index} 季第 {episode_index} 集：{episode_title}\n{episode_synopsis}\n{episode_poster}")
 
                     if not self.print_only:
-                        show.season(season_index).episode(episode_index).edit(**{
-                            "title.value": episode_title,
-                            "title.locked": 1,
-                            "summary.value": episode_synopsis,
-                            "summary.locked": 1,
-                        })
+                        if not self.season_index or self.season_index and self.season_index == season_index:
+                            show.season(season_index).episode(episode_index).edit(**{
+                                "title.value": episode_title,
+                                "title.locked": 1,
+                                "summary.value": episode_synopsis,
+                                "summary.locked": 1,
+                            })
 
-                        if self.replace_poster:
-                            show.season(season_index).episode(
-                                episode_index).uploadPoster(url=episode_poster)
+                            if self.replace_poster:
+                                show.season(season_index).episode(
+                                    episode_index).uploadPoster(url=episode_poster)
         elif data['type'] == 'movie':
             movie_synopsis = text_format(data['synopsis'])
             movie_background = next(
