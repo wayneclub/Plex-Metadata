@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-region', '--region', dest='region', help='詮釋資料地區')
 
-    parser.add_argument('-d', '--download_poster', dest='download_poster',
+    parser.add_argument('-download', '--download_poster', dest='download_poster',
                         nargs='?', const=True, help='下載海報')
 
     parser.add_argument('-o',
@@ -51,7 +51,7 @@ if __name__ == "__main__":
                         dest='output',
                         help='下載路徑')
     parser.add_argument(
-        '-debug',
+        '-d',
         '--debug',
         action='store_true',
         help="enable debug logging",
