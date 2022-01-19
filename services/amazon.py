@@ -1,13 +1,12 @@
 import logging
 import re
-from urllib.request import DataHandler
 import orjson
 from urllib.parse import urlsplit
-from common.utils import get_static_html, plex_find_lib, text_format, save_html
+from common.utils import plex_find_lib, text_format
 from services.service import Service
 
 
-class PrimeVideo(Service):
+class Amazon(Service):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
@@ -17,7 +16,6 @@ class PrimeVideo(Service):
         }
 
     def get_metadata(self, data):
-        save_html(data)
         title_id = data['pageTitleId']
         title_info = data['detail']['headerDetail'][title_id]
         title = title_info['title']

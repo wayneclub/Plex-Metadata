@@ -7,13 +7,13 @@ import argparse
 import logging
 from datetime import datetime
 import os
-from services import amazon, baidu, chiblog, custom, friday, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
+from services import baidu, chiblog, custom, friday, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
 from services.netflix import Netflix
 from services.itunes import iTunes
 from services.appletv import AppleTV
 from services.hbogoasia import HBOGOAsia
 from services.disneyplus import DisneyPlus
-from services.primevideo import PrimeVideo
+from services.amazon import Amazon
 from services.iqiyi import IQIYI
 from services.myvideo import MyVideo
 from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
@@ -114,12 +114,9 @@ if __name__ == "__main__":
     elif 'disney' in url:
         disneyplus = DisneyPlus(args)
         disneyplus.main()
-    elif 'amazon' in url:
-        amazon.get_metadata(get_static_html(url), plex,
-                            title, replace_poster, print_only)
-    elif 'primevideo' in url:
-        primevideo = PrimeVideo(args)
-        primevideo.main()
+    elif 'amazon' or 'primevideo' in url:
+        amazon = Amazon(args)
+        amazon.main()
     elif 'tv.apple.com' in url:
         appletv = AppleTV(args)
         appletv.main()
