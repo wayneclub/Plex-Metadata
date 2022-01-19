@@ -125,9 +125,9 @@ class AppleTV(Service):
         res = self.session.get(self.url)
         if res.ok:
             html_page = BeautifulSoup(res.text, 'lxml')
-            match = re.search(r'shoebox-uts-api">')
-            data = orjson.loads(html_page.find(
-                'script', id='shoebox-uts-api').string.strip())
+            match = re.search(
+                r'<script type=\"fastboot/shoebox\" id=\"shoebox-uts-api\">(.*)</script>')
+            data = orjson.loads(match.group(1).strip())
             print(data.keys())
             id = next(key for key in list(data.keys())
                       if f'{os.path.basename(self.url)}.caller.web' in key)
