@@ -7,7 +7,7 @@ from common.utils import plex_find_lib, save_html, text_format
 
 
 def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False, season_index=1):
-    title = re.sub('-緯來日本台-.+', '', driver.title)
+    title = re.sub('-緯來日本台(.+)*', '', driver.title)
     print(f"\n{title}")
 
     if not print_only:
@@ -59,8 +59,7 @@ def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=Fals
             episode_synopsis = ''
             if html_page.find('h3') and html_page.find('h3').next_sibling:
                 episode_synopsis = html_page.find('h3').next_sibling
-
-            if html_page.find('p'):
+            elif html_page.find('p'):
                 episode_synopsis = html_page.find(
                     'p').find_all('br')[-1].next_sibling.strip()
 

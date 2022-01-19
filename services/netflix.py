@@ -225,6 +225,11 @@ class Netflix(Service):
                             season_index).episode(episode_index).title
 
                     episode_synopsis = text_format(episode['synopsis'])
+
+                    if not self.print_only and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).summary):
+                        episode_synopsis = show.season(
+                            season_index).episode(episode_index).summary
+
                     episode_poster = next(
                         img['url'] for img in episode['stills'] if img['w'] == 1920)
 

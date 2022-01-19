@@ -2,7 +2,7 @@ import re
 import logging
 import orjson
 from services.service import Service
-from common.utils import plex_find_lib, save_html, text_format
+from common.utils import plex_find_lib, text_format
 from common.dictionary import convert_chinese_number
 
 

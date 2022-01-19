@@ -9,7 +9,6 @@ from common.utils import plex_find_lib, text_format
 def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False, season_index=1):
 
     title = driver.find_element(By.XPATH, "//h1[@class='title-chi']").text
-    print(f"\n{title}")
 
     season_regex = re.search(r'.+第([0-9]+)季', title)
     if season_regex:
@@ -20,7 +19,14 @@ def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=Fals
 
     season_synopsis = text_format(
         driver.find_element(By.XPATH, "//p[contains(@class, 'storyline')]").text)
-    print(f"\n{season_synopsis}")
+
+    show_poster = driver.find_element(
+        By.XPATH, "//div[@class='order-poster']/img").get_attribute('src').replace('_S', '').replace('_M', '')
+    if not show_poster:
+        show_poster = driver.find_elements(
+            By.XPATH, "//div[@class='photos-content']/img")[-1].get_attribute('src').replace('_S', '').replace('_M', '')
+
+    print(f"\n{title}\n{season_synopsis}\n{show_poster}")
 
     if not print_only:
         show.season(season_index).edit(**{
@@ -30,11 +36,10 @@ def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=Fals
             "summary.locked": 1,
         })
 
-    poster_url = driver.find_elements(
-        By.XPATH, "//div[@class='photos-content']/img")[-1].get_attribute('src').replace('_M', '')
-
-    if not print_only and replace_poster:
-        show.uploadPoster(url=poster_url)
+        if replace_poster:
+            show.uploadPoster(url=show_poster)
+            if season_index == 1:
+                show.season(season_index).uploadPoster(url=show_poster)
 
     action = ActionChains(driver)
     for li in driver.find_elements(By.XPATH, "//ul[@class='episode-container']/li"):

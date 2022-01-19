@@ -7,7 +7,7 @@ import argparse
 import logging
 from datetime import datetime
 import os
-from services import amazon, baidu, chiblog, custom, friday, myvideo, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
+from services import amazon, baidu, chiblog, custom, friday, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
 from services.netflix import Netflix
 from services.itunes import iTunes
 from services.appletv import AppleTV
@@ -15,7 +15,8 @@ from services.hbogoasia import HBOGOAsia
 from services.disneyplus import DisneyPlus
 from services.primevideo import PrimeVideo
 from services.iqiyi import IQIYI
-from common.utils import connect_plex, get_static_html, get_dynamic_html
+from services.myvideo import MyVideo
+from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -66,7 +67,7 @@ if __name__ == "__main__":
             level=logging.DEBUG,
             handlers=[
                 logging.FileHandler(
-                    f"Subtitle-Downloader_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"),
+                    f"Plex-Metadata_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"),
                 logging.StreamHandler()
             ]
         )
@@ -75,6 +76,10 @@ if __name__ == "__main__":
             format='%(message)s',
             level=logging.INFO,
         )
+
+    ip = get_ip_location()
+    logging.info(
+        'ip: %s (%s)', ip['ip'], ip['country'])
 
     url = args.url
     title = args.title
@@ -121,7 +126,6 @@ if __name__ == "__main__":
     elif 'itunes.apple.com' in url:
         itunes = iTunes(args)
         itunes.main()
-        # itunes.get_metadata(get_dynamic_html(url), plex, title, print_only)
     elif 'iq.com' in url:
         iqiyi = IQIYI(args)
         iqiyi.main()
@@ -129,8 +133,8 @@ if __name__ == "__main__":
         friday.get_metadata(get_dynamic_html(
             url), plex, title, replace_poster, print_only)
     elif 'myvideo' in url:
-        myvideo.get_metadata(get_static_html(
-            url), plex, title, replace_poster, print_only)
+        myvideo = MyVideo(args)
+        myvideo.main()
     elif 'kktv' in url:
         kktv.get_metadata(get_static_html(
             url), plex, title, replace_poster, print_only)

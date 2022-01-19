@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
+import requests
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from plexapi.server import PlexServer
@@ -198,6 +199,9 @@ def text_format(text, trim=False):
 
     return text.strip()
 
+
+def get_ip_location():
+    return requests.Session().get('https://ipinfo.io/json').json()
 
 def download_images(urls, folder_path):
     print("\n下載海報：\n---------------------------------------------------------------")
