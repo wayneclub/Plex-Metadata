@@ -22,7 +22,7 @@ class IQIYI(Service):
             season_index = 1
 
         show_synopsis = text_format(data['videoAlbumInfo']['desc'])
-        show_poster = re.sub(r'(.+)_\d+_\d+\.webp', 'https:\\1_2000_3000.webp',
+        show_poster = re.sub(r'(.+)_\d+_\d+\.webp', 'https:\\1_2200_3000.webp',
                              data['videoAlbumInfo']['schemaAlbumImage'])
         self.logger.debug(data['videoAlbumInfo'])
 
@@ -76,6 +76,12 @@ class IQIYI(Service):
                         episode_index).uploadPoster(url=episode_poster)
 
     def main(self):
+        if 'play/' in self.url:
+            id = re.search(
+                r'https://www.iq.com/play/.+\-([^-]+)\?lang=.+', self.url)
+            if not id:
+                id = re.search(r'https://www.iq.com/play/([^-]+)', self.url)
+            self.url = f'https://www.iq.com/album/{id.group(1)}?lang=zh_tw'
         res = self.session.get(self.url)
         if res.ok:
             match = re.search(r'({\"props\":{.*})', res.text)

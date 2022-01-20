@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from bs4 import BeautifulSoup
 import orjson
@@ -22,17 +23,19 @@ class AppleTV(Service):
         if data['rating']['displayName'] != '未經分級':
             content_rating = f"tw/{data['rating']['displayName']}"
         movie_synopsis = text_format(data['description'])
-        movie_poster = data['images']['coverArt']['url'].format(
-            w=data['images']['coverArt']['width'], h=data['images']['coverArt']['height'], f='webp')
+        if 'coverArt' in data['images']:
+            movie_poster = data['images']['coverArt']['url'].format(
+                w=data['images']['coverArt']['width'], h=data['images']['coverArt']['height'], f='webp')
+
         if 'centeredFullScreenBackgroundImage' in data['images']:
             movie_background = data['images']['centeredFullScreenBackgroundImage']['url'].format(
                 w=4320, h=2160, c='sr', f='webp')
-        else:
+        elif 'previewFrame' in data['images']:
             movie_background = data['images']['previewFrame']['url'].format(
                 w=data['images']['previewFrame']['width'], h=data['images']['previewFrame']['height'], c='sr', f='webp')
 
         print(
-            f"\n{title}\n{content_rating}\n{movie_synopsis}\n{movie_poster}\n{movie_background}")
+            f"\n{title}\t{content_rating}\n{movie_synopsis}\n{movie_poster}\n{movie_background}")
 
         if not self.print_only:
             movie = plex_find_lib(self.plex, 'movie',
@@ -124,13 +127,12 @@ class AppleTV(Service):
     def main(self):
         res = self.session.get(self.url)
         if res.ok:
-            html_page = BeautifulSoup(res.text, 'lxml')
             match = re.search(
-                r'<script type=\"fastboot/shoebox\" id=\"shoebox-uts-api\">(.*)</script>')
+                r'<script type=\"fastboot\/shoebox\" id=\"shoebox-uts-api\">(.+?)<\/script>', res.text)
             data = orjson.loads(match.group(1).strip())
-            print(data.keys())
+
             id = next(key for key in list(data.keys())
-                      if f'{os.path.basename(self.url)}.caller.web' in key)
+                      if f"{os.path.basename(self.url).replace('?action=play', '')}.caller.web" in key)
             data = orjson.loads(data[id])['d']['data']['content']
             if data['type'] == 'Movie':
                 self.get_movie_metadata(data)

@@ -14,6 +14,7 @@ from services.appletv import AppleTV
 from services.hbogoasia import HBOGOAsia
 from services.disneyplus import DisneyPlus
 from services.amazon import Amazon
+from services.googleplay import GooglePlay
 from services.iqiyi import IQIYI
 from services.myvideo import MyVideo
 from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
@@ -114,7 +115,7 @@ if __name__ == "__main__":
     elif 'disney' in url:
         disneyplus = DisneyPlus(args)
         disneyplus.main()
-    elif 'amazon' or 'primevideo' in url:
+    elif 'amazon' in url or 'primevideo' in url:
         amazon = Amazon(args)
         amazon.main()
     elif 'tv.apple.com' in url:
@@ -123,6 +124,9 @@ if __name__ == "__main__":
     elif 'itunes.apple.com' in url:
         itunes = iTunes(args)
         itunes.main()
+    elif 'play.google.com' in url:
+        googleplay = GooglePlay(args)
+        googleplay.main()
     elif 'iq.com' in url:
         iqiyi = IQIYI(args)
         iqiyi.main()
