@@ -7,7 +7,7 @@ import argparse
 import logging
 from datetime import datetime
 import os
-from services import baidu, chiblog, custom, friday, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
+from services import baidu, chiblog, custom, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
 from services.netflix import Netflix
 from services.itunes import iTunes
 from services.appletv import AppleTV
@@ -16,6 +16,7 @@ from services.disneyplus import DisneyPlus
 from services.amazon import Amazon
 from services.googleplay import GooglePlay
 from services.iqiyi import IQIYI
+from services.friday import Friday
 from services.myvideo import MyVideo
 from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
 
@@ -131,8 +132,8 @@ if __name__ == "__main__":
         iqiyi = IQIYI(args)
         iqiyi.main()
     elif 'video.friday' in url:
-        friday.get_metadata(get_dynamic_html(
-            url), plex, title, replace_poster, print_only)
+        friday = Friday(args)
+        friday.main()
     elif 'myvideo' in url:
         myvideo = MyVideo(args)
         myvideo.main()

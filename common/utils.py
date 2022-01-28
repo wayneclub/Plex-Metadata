@@ -13,7 +13,6 @@ from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
 import requests
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
 from plexapi.server import PlexServer
 import multiprocessing
 import wget
@@ -25,7 +24,7 @@ def get_static_html(url, json_request=False):
     """Get static html"""
     try:
         headers = {
-            'User-Agent': 'User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
         }
         req = request.Request(url, headers=headers)
         response = request.urlopen(req)
@@ -62,11 +61,7 @@ def get_dynamic_html(url, headless=True):
              'credentials_enable_service': False, 'profile.password_manager_enabled': False}
     options.add_experimental_option('prefs', prefs)
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
-    if platform.system() == 'Windows':
-        driver = webdriver.Chrome(ChromeDriverManager(
-            log_level=0).install(), options=options)
-    else:
-        driver = webdriver.Chrome('chromedriver', options=options)
+    driver = webdriver.Chrome('chromedriver', options=options)
     driver.execute_cdp_cmd('Network.setUserAgentOverride', {
         "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})
     driver.delete_all_cookies()
@@ -202,6 +197,7 @@ def text_format(text, trim=False):
 
 def get_ip_location():
     return requests.Session().get('https://ipinfo.io/json').json()
+
 
 def download_images(urls, folder_path):
     print("\n下載海報：\n---------------------------------------------------------------")

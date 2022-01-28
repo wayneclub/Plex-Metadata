@@ -31,7 +31,7 @@ def get_metadata(html_page, plex, plex_title="", replace_poster="", print_only=F
 
         if replace_poster:
             show.uploadPoster(url=show_poster)
-            if len(data['containsSeason']) == 1:
+            if 'containsSeason' in data and len(data['containsSeason']) == 1:
                 show.season(season_index).uploadPoster(url=show_poster)
 
     for season in data['containsSeason']:

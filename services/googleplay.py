@@ -4,7 +4,7 @@ import re
 import json
 from bs4 import BeautifulSoup
 from services.service import Service
-from common.utils import plex_find_lib, save_html, text_format
+from common.utils import get_dynamic_html, plex_find_lib, save_html, text_format
 
 
 class GooglePlay(Service):
@@ -12,18 +12,26 @@ class GooglePlay(Service):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
 
-    def get_metadata(self, html_page, background_url):
+    def get_metadata(self, driver):
+        html_page = BeautifulSoup(driver.page_source, 'lxml')
+
         title = html_page.find('h1').getText(strip=True)
         movie_synopsis = text_format(html_page.find(
-            'meta', {'itemprop': 'description'})['content'])
+            'meta', {'property': 'og:description'})['content'])
 
         movie_poster = html_page.find(
             'meta', {'property': 'og:image'})['content'] + '=w2000'
+        match = re.findall(
+            r'https:\/\/play-lh\.googleusercontent\.com\/proxy\/[^\"=]+', driver.page_source)
 
-        movie_background = background_url + '=w3840'
+        movie_background = ''
+        if match:
+            movie_background = set(match).pop() + '=w3840'
 
         print(
             f"\n{title}\n{movie_synopsis}\n{movie_poster}\n{movie_background}")
+
+        driver.quit()
 
         if not self.print_only:
             movie = plex_find_lib(self.plex, 'movie',
@@ -34,14 +42,9 @@ class GooglePlay(Service):
             })
             if self.replace_poster:
                 movie.uploadPoster(url=movie_poster)
-                movie.uploadArt(url=movie_background)
+                if movie_background:
+                    movie.uploadArt(url=movie_background)
 
     def main(self):
-        res = self.session.get(self.url)
-        if res.ok:
-            match = re.findall(
-                r'https:\/\/play-lh\.googleusercontent\.com\/proxy\/[^\"=]+', res.text)
-            if match:
-                background_url = set(match).pop()
-                self.get_metadata(BeautifulSoup(
-                    res.text, 'lxml'), background_url)
+        driver = get_dynamic_html(self.url)
+        self.get_metadata(driver)

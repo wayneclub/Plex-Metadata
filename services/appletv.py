@@ -23,10 +23,13 @@ class AppleTV(Service):
         if data['rating']['displayName'] != '未經分級':
             content_rating = f"tw/{data['rating']['displayName']}"
         movie_synopsis = text_format(data['description'])
+
+        movie_poster = ''
         if 'coverArt' in data['images']:
             movie_poster = data['images']['coverArt']['url'].format(
                 w=data['images']['coverArt']['width'], h=data['images']['coverArt']['height'], f='webp')
 
+        movie_background = ''
         if 'centeredFullScreenBackgroundImage' in data['images']:
             movie_background = data['images']['centeredFullScreenBackgroundImage']['url'].format(
                 w=4320, h=2160, c='sr', f='webp')
