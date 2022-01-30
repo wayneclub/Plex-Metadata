@@ -99,10 +99,8 @@ class MyVideo(Service):
                 r'(\{\"embedUrl\":.+\})', res.text)
             if match:
                 data = orjson.loads(match[0])
-                movie_search = re.search(
-                    r'https:\/\/www.myvideo.net.tw\/details\/0\/.+', self.url)
 
-                if movie_search:
+                if '/details/0/' in self.url or 'seriesType=0' in self.url:
                     rating = re.search(r'"rating": \'(.+)\'', res.text)
                     if rating:
                         content_rating = rating.group(1)
