@@ -119,21 +119,21 @@ def plex_find_lib(plex, lib_type, plex_title="", title=""):
         lib = plex.library.search(title=plex_title, libtype=lib_type)
     else:
         lib = plex.library.search(title=title, libtype=lib_type)
-
-    if not plex_title and not lib:
-        correct_title = input("請輸入正確標題：")
-        lib = plex.library.search(title=correct_title, libtype=lib_type)
         if not lib:
-            print(f"plex找不到{title}，請附上正確標題")
-            exit(1)
-        else:
-            lib = lib[0]
-    elif len(lib) > 1:
-        print(lib)
-        correct_index = int(input("請選擇要改的編號："))
+            title = input("\n請輸入正確標題：")
+            lib = plex.library.search(title=title, libtype=lib_type)
+
+    if len(lib) > 1:
+        for index, data in enumerate(lib):
+            print(f"{index}: {data.title} ({data.year}) [{data.ratingKey}]")
+
+        correct_index = int(input("\n請選擇要改的編號："))
         lib = lib[correct_index]
-    else:
+    elif len(lib) == 1:
         lib = lib[0]
+    else:
+        print(f"\nplex找不到{title}，請附上正確標題")
+        exit(1)
 
     return lib
 

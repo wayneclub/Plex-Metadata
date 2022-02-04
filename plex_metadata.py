@@ -7,7 +7,7 @@ import argparse
 import logging
 from datetime import datetime
 import os
-from services import baidu, chiblog, custom, kktv, mactv, mod, pixnet, thetvdb, tpcatv, videoland
+from services import baidu, chiblog, custom, mactv, mod, pixnet, thetvdb, tpcatv, videoland
 from services.netflix import Netflix
 from services.itunes import iTunes
 from services.appletv import AppleTV
@@ -18,6 +18,7 @@ from services.googleplay import GooglePlay
 from services.iqiyi import IQIYI
 from services.friday import Friday
 from services.myvideo import MyVideo
+from services.kktv import KKTV
 from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -138,8 +139,8 @@ if __name__ == "__main__":
         myvideo = MyVideo(args)
         myvideo.main()
     elif 'kktv' in url:
-        kktv.get_metadata(get_static_html(
-            url), plex, title, replace_poster, print_only)
+        kktv = KKTV(args)
+        kktv.main()
     elif 'mod.cht.com.tw' in url:
         mod.get_metadata(get_dynamic_html(url), plex,
                          title, print_only, season_index)

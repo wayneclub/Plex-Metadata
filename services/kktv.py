@@ -1,57 +1,89 @@
 import re
+import os
+import logging
 import orjson
-from common.utils import plex_find_lib, text_format
+from common.utils import plex_find_lib, text_format, save_html
+from services.service import Service
 
+class KKTV(Service):
+    def __init__(self, args):
+        super().__init__(args)
+        self.logger = logging.getLogger(__name__)
 
-def get_metadata(html_page, plex, plex_title="", replace_poster="", print_only=False, season_index=1):
-    metadata = html_page.find('script', attrs={'type': 'application/ld+json'})
-    data = orjson.loads(str(metadata.string))
-    title = data['name'].strip()
+        self.api = {
+            'play': 'https://www.kktv.me/play/{drama_id}010001'
+        }
 
-    if not print_only:
-        show = plex_find_lib(plex, 'show', plex_title, title)
+    def get_metadata(self, data):
+        title = data['title'].strip()
 
-    show_synopsis = text_format(data['description'])
-    show_poster = data['thumbnailUrl'].replace('.xs', '.lg')
+        if not self.season_index:
+            season_index = 1
 
-    print(f"\n{title}\n{show_synopsis}\n{show_poster}")
+        show_synopsis = text_format(data['summary'])
+        show_poster = data['cover'].replace('.xs', '.lg')
+        show_backgrounds = [img.replace('.xs', '.lg') for img in data['stills']]
 
-    if not print_only and season_index == 1:
-        show.edit(**{
-            "summary.value": show_synopsis,
-            "summary.locked": 1,
-        })
+        print(f"\n{title}\n{show_synopsis}\n{show_poster}\n{show_backgrounds}")
 
-        show.season(season_index).edit(**{
-            "title.value": f'第 {season_index} 季',
-            "title.locked": 1,
-            "summary.value": show_synopsis,
-            "summary.locked": 1,
-        })
+        if not self.print_only:
+            show = plex_find_lib(self.plex, 'show', self.plex_title, title)
 
-        if replace_poster:
-            show.uploadPoster(url=show_poster)
-            if 'containsSeason' in data and len(data['containsSeason']) == 1:
-                show.season(season_index).uploadPoster(url=show_poster)
+            if self.replace_poster:
+                show.uploadPoster(url=show_poster)
+                show.uploadArt(url=show_backgrounds[0])
 
-    for season in data['containsSeason']:
-        season_search = re.search(r'第(\d+)季', season['name'])
-        if season_search:
-            season_index = int(season_search.group(1))
-        for episode in season['episode']:
-            episode_search = re.search(r'第\d+季第(\d+)集', episode['name'])
-            episode_index = int(episode_search.group(1))
+        if 'series' in data:
+            for season in data['series']:
+                season_index = int(season['title'][1])
+                if not self.print_only and season_index == 1:
+                    show.edit(**{
+                        "summary.value": show_synopsis,
+                        "summary.locked": 1,
+                    })
 
-            episode_poster = episode['video']['thumbnailUrl'].replace(
-                '.xs', '.lg')
+                    show.season(season_index).edit(**{
+                        "title.value": f'第 {season_index} 季',
+                        "title.locked": 1,
+                        "summary.value": show_synopsis,
+                        "summary.locked": 1,
+                    })
 
-            print(episode_poster)
+                    if self.replace_poster:
+                        show.season(season_index).uploadPoster(url=show_poster)
 
-            if not print_only:
-                show.season(season_index).episode(episode_index).edit(**{
-                    "title.value": f'第 {episode_index} 集',
-                    "title.locked": 1,
-                })
-                if replace_poster:
-                    show.season(season_index).episode(
-                        episode_index).uploadPoster(url=episode_poster)
+                for episode in season['episodes']:
+                    episode_index = int(
+                                episode['id'].replace(episode['seriesId'], ''))
+
+                    episode_poster = episode['still'].replace('.xs', '.lg')
+
+                    episode_title = episode['title']
+
+                    if not self.print_only and re.search(r'第[0-9 ]+集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
+                        episode_title = show.season(
+                            season_index).episode(episode_index).title
+                    else:
+                        episode_title = f'第 {episode_index} 集'
+
+                    print(f"\n{episode_title}\n{episode_poster}")
+
+                    if not self.print_only:
+                        show.season(season_index).episode(episode_index).edit(**{
+                            "title.value": episode_title,
+                            "title.locked": 1,
+                        })
+                        if self.replace_poster:
+                            show.season(season_index).episode(
+                                episode_index).uploadPoster(url=episode_poster)
+    def main(self):
+        drama_id = os.path.basename(self.url)
+        play_url = self.api['play'].format(drama_id=drama_id)
+
+        res = self.session.get(play_url)
+        if res.ok:
+            match = re.search(r'({\"props\":{.*})', res.text)
+            if match:
+                data = orjson.loads(match.group(1))
+                data = data['props']['initialState']['titles']['byId'][drama_id]
+                self.get_metadata(data)

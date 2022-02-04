@@ -60,8 +60,12 @@ def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=Fals
             if html_page.find('h3') and html_page.find('h3').next_sibling:
                 episode_synopsis = html_page.find('h3').next_sibling
             elif html_page.find('p'):
-                episode_synopsis = html_page.find(
-                    'p').find_all('br')[-1].next_sibling.strip()
+                if html_page.find('p').find_all('br'):
+                    episode_synopsis = html_page.find(
+                        'p').find_all('br')[-1].next_sibling.strip()
+                else:
+                    episode_synopsis = html_page.find_all(
+                        'p')[-1].get_text(strip=True)
 
             episode_synopsis = text_format(re.sub(
                 r'（[^）]+飾）', '', episode_synopsis.replace('(', '（').replace(')', '）')))
