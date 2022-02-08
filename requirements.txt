@@ -4,3 +4,4 @@ opencc
 wget
 plexapi
 orjson
+chromedriver-autoinstaller

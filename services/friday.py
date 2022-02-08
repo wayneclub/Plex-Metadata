@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from common.utils import plex_find_lib, text_format, get_dynamic_html
 from services.service import Service
 
+
 class Friday(Service):
     def __init__(self, args):
         super().__init__(args)
@@ -23,6 +24,18 @@ class Friday(Service):
         if program.get(content_type):
             return program.get(content_type)
 
+    def get_content_rating(self, rating):
+        content_rating = {
+            '普': '普遍級',
+            '保': '保護級',
+            '輔12': '輔12級',
+            '輔15': '輔15級',
+            '限': '限制級'
+        }
+
+        if content_rating.get(rating):
+            return content_rating.get(rating)
+
     def get_movie_metadata(self, driver):
         title = driver.find_element(By.XPATH, "//h1[@class='title-chi']").text
         movie_synopsis = text_format(
@@ -35,7 +48,7 @@ class Friday(Service):
                 By.XPATH, "//div[@class='photos-content']/img")[-1].get_attribute('src').replace('_S', '').replace('_M', '')
 
         rating = driver.find_element(By.XPATH, "//span[@class='grading']").text
-        content_rating = f"tw/{rating}"
+        content_rating = f"tw/{self.get_content_rating(rating)}"
 
         print(f"\n{title}\t{content_rating}\n{movie_synopsis}\n{movie_poster}")
 
@@ -95,7 +108,7 @@ class Friday(Service):
                 EC.visibility_of_element_located((By.CLASS_NAME, 'episode-content')))
 
             episode_title = episode_content.find_element(By.CLASS_NAME,
-                                                        'epi-title').text
+                                                         'epi-title').text
             episode_synopsis = text_format(
                 episode_content.find_element(By.CLASS_NAME, 'epi-info').text)
 
@@ -111,7 +124,8 @@ class Friday(Service):
                 if episode_index == 1:
                     print(f"\n第 {season_index} 季")
 
-                print(f"\n第 {episode_index} 集：{episode_title}\n{episode_synopsis}")
+                print(
+                    f"\n第 {episode_index} 集：{episode_title}\n{episode_synopsis}")
             else:
                 print(f"\n{li.text} {episode_title}\n{episode_synopsis}")
 
@@ -131,7 +145,6 @@ class Friday(Service):
                         "summary.locked": 1,
                     })
         driver.quit()
-
 
     def main(self):
         content_search = re.search(

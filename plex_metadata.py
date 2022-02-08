@@ -19,6 +19,7 @@ from services.iqiyi import IQIYI
 from services.friday import Friday
 from services.myvideo import MyVideo
 from services.kktv import KKTV
+from services.hamivideo import HamiVideo
 from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
 
 if __name__ == "__main__":
@@ -141,6 +142,9 @@ if __name__ == "__main__":
     elif 'kktv' in url:
         kktv = KKTV(args)
         kktv.main()
+    elif 'hamivideo' in url:
+        hamivideo = HamiVideo(args)
+        hamivideo.main()
     elif 'mod.cht.com.tw' in url:
         mod.get_metadata(get_dynamic_html(url), plex,
                          title, print_only, season_index)

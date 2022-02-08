@@ -1,7 +1,6 @@
 import os
 import re
 import logging
-from bs4 import BeautifulSoup
 import orjson
 from common.utils import plex_find_lib, text_format
 from services.service import Service
@@ -17,8 +16,9 @@ class AppleTV(Service):
         }
 
     def get_movie_metadata(self, data):
-        self.logger.debug(data)
+
         title = data['title']
+
         content_rating = ''
         if data['rating']['displayName'] != '未經分級':
             content_rating = f"tw/{data['rating']['displayName']}"
@@ -135,8 +135,10 @@ class AppleTV(Service):
             data = orjson.loads(match.group(1).strip())
 
             id = next(key for key in list(data.keys())
-                      if f"{os.path.basename(self.url).replace('?action=play', '')}.caller.web" in key)
+                      if re.sub(r'(.+)\?.+', '\\1.caller.web', os.path.basename(self.url)) in key and 'personalized' not in key)
+
             data = orjson.loads(data[id])['d']['data']['content']
+            self.logger.debug(data)
             if data['type'] == 'Movie':
                 self.get_movie_metadata(data)
             else:

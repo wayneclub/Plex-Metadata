@@ -18,6 +18,7 @@ import multiprocessing
 import wget
 from PIL import Image
 from io import BytesIO
+import chromedriver_autoinstaller
 
 
 def get_static_html(url, json_request=False):
@@ -61,6 +62,7 @@ def get_dynamic_html(url, headless=True):
              'credentials_enable_service': False, 'profile.password_manager_enabled': False}
     options.add_experimental_option('prefs', prefs)
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
+    chromedriver_autoinstaller.install()
     driver = webdriver.Chrome('chromedriver', options=options)
     driver.execute_cdp_cmd('Network.setUserAgentOverride', {
         "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})

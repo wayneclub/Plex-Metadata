@@ -36,7 +36,8 @@ class DisneyPlus(Service):
                 data = res.json()['data']['DmcSeriesBundle']
                 title = data['series']['text']['title']['full']['series']['default']['content'].strip(
                 )
-                show_synopsis = data['series']['text']['description']['medium']['series']['default']['content']
+                show_synopsis = text_format(
+                    data['series']['text']['description']['medium']['series']['default']['content'])
 
                 if 'background_details' in data['series']['image']:
                     show_background = data['series']['image']['background_details']['1.78']['series']['default']['url']
@@ -155,7 +156,8 @@ class DisneyPlus(Service):
                 movie_id = data['contentId']
                 title = data['text']['title']['full']['program']['default']['content'].strip(
                 ).strip()
-                movie_synopsis = data['text']['description']['medium']['program']['default']['content']
+                movie_synopsis = text_format(
+                    data['text']['description']['medium']['program']['default']['content'])
 
                 if 'background_details' in data['image']:
                     movie_background = data['image']['background_details']['1.78']['program']['default']['url']
