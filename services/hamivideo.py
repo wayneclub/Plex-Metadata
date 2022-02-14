@@ -14,7 +14,8 @@ class HamiVideo(Service):
     def get_movie_metadata(self, data):
         title = data['name'].strip()
 
-        movie_synopsis = text_format(data['description'])
+        movie_synopsis = text_format(
+            data['description'].replace('Hami Video', ''))
         movie_poster = data['image']
 
         content_rating = f"tw/{data['contentRating']}"

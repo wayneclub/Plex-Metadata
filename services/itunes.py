@@ -11,6 +11,7 @@ class iTunes(Service):
 
     def get_metadata(self, data):
         title = data['name']
+        release_year = data['releaseDate'][:4]
         content_rating = ''
         if 'tw-movies' in data['contentRatingsBySystem'] and data['contentRatingsBySystem']['tw-movies']['name'] != '未經分級':
             content_rating = f"tw/{data['contentRatingsBySystem']['tw-movies']['name']}"
@@ -18,7 +19,8 @@ class iTunes(Service):
         movie_poster = data['artwork']['url'].format(
             w=data['artwork']['width'], h=data['artwork']['height'], f='webp')
 
-        print(f"\n{title}\n{content_rating}\n{movie_synopsis}\n{movie_poster}")
+        print(
+            f"\n{title} ({release_year})\t{content_rating}\n{movie_synopsis}\n{movie_poster}")
 
         if not self.print_only:
             movie = plex_find_lib(self.plex, 'movie', self.plex_title, title)
