@@ -1,6 +1,6 @@
 import re
-from common.utils import plex_find_lib, text_format
-from common.dictionary import translate_text, convert_chinese_number
+from utils.helper import plex_find_lib, text_format
+from utils.dictionary import translate_text, convert_chinese_number
 
 
 def replace_episode(plex, plex_title, language="", input_summary=""):
@@ -42,8 +42,10 @@ def replace_episode(plex, plex_title, language="", input_summary=""):
                 episode_summary = text_format(summary[index-1])
             else:
                 if language == 'cn':
-                    episode_summary = text_format(
-                        text_format(translate_text(episode.summary)))
+                    episode_title = text_format(
+                        text_format(translate_text(episode_title)))
+                    # episode_summary = text_format(
+                    #     text_format(translate_text(episode.summary)))
                 else:
                     episode_summary = text_format(
                         episode.summary)

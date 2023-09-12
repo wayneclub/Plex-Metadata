@@ -1,10 +1,11 @@
 import re
+import sys
 import logging
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from common.utils import plex_find_lib, text_format, get_dynamic_html
+from utils.helper import plex_find_lib, text_format, get_dynamic_html
 from services.service import Service
 
 
@@ -12,6 +13,12 @@ class Friday(Service):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
+
+        self.api ={
+            'pic': 'https://vbmspic.video.friday.tw',
+            'title' : 'https://video.friday.tw/api2/content/get?contentId={content_id}&contentType={content_type}&srcRecommendId=-1&recommendId=&eventPageId=&offset=0&length=1',
+            'episode_list' : 'https://video.friday.tw/api2/episode/list?contentId={content_id}&contentType={content_type}&offset=0&length=100&mode=2',
+        }
 
     def get_content_type(self, content_type):
         program = {
@@ -35,6 +42,79 @@ class Friday(Service):
 
         if content_rating.get(rating):
             return content_rating.get(rating)
+
+    def movie_metadata(self, data):
+        print()
+
+    def series_metadata(self, data):
+
+        title = re.sub(r'(.+?)(第.+[季|彈])*', '\\1', data['chineseName']).strip()
+        season_regex = re.search(r'.+第([0-9]+)季', title)
+        if season_regex:
+            season_index = int(season_regex.group(1))
+        else:
+            season_index = 1
+
+        show_poster = self.api['pic'] + data['imageUrl']
+
+        original_title = data['englishName'].replace('，', ',')
+
+        print(f"\n{title}\n{show_poster}")
+
+        episode_list_url = self.api['episode_list'].format(
+            content_id=data['contentId'], content_type=data['contentType'])
+        self.logger.debug(episode_list_url)
+
+        res = self.session.get(url=episode_list_url, timeout=5)
+
+        if res.ok:
+            data = res.json()['data']
+
+            if not self.print_only:
+                show = plex_find_lib(self.plex, 'show', self.plex_title, title)
+
+                show.season(season_index).edit(**{
+                    "title.value": f'第 {season_index} 季',
+                    "title.locked": 1,
+                })
+
+                if self.replace_poster:
+                    show.uploadPoster(url=show_poster)
+                    if season_index == 1:
+                        show.season(season_index).uploadPoster(url=show_poster)
+
+            for episode in data['episodeList']:
+                episode_index = int(episode['sort'])
+                episode_background = self.api['pic'] + episode['stillImageUrl']
+                episode_title = episode['separationName']
+                episode_synopsis = episode['separationIntroduction']
+
+                if episode_title:
+                    print(f"\n第 {episode_index} 集：{episode_title}\n{episode_synopsis}\n{episode_background}")
+                else:
+                    print(f"\n第 {episode_index} 集：{episode_synopsis}\n{episode_background}")
+
+                if not self.print_only and episode_index:
+                    if episode_title:
+                        show.season(season_index).episode(episode_index).edit(**{
+                            "title.value": episode_title,
+                            "title.locked": 1,
+                            "summary.value": episode_synopsis,
+                            "summary.locked": 1,
+                        })
+                    else:
+                        show.season(season_index).episode(episode_index).edit(**{
+                            "title.value": f'第 {episode_index} 集',
+                            "title.locked": 1,
+                            "summary.value": episode_synopsis,
+                            "summary.locked": 1,
+                        })
+
+        else:
+            self.logger.error(res.text)
+
+
+
 
     def get_movie_metadata(self, driver):
         title = driver.find_element(By.XPATH, "//h1[@class='title-chi']").text
@@ -148,11 +228,32 @@ class Friday(Service):
 
     def main(self):
         content_search = re.search(
-            r'https:\/\/video\.friday\.tw\/(drama|anime|movie|show)\/detail\/(.+)', self.url)
-        content_type = self.get_content_type(content_search.group(1))
-        driver = get_dynamic_html(self.url)
+            r'(https:\/\/video\.friday\.tw\/(drama|anime|movie|show)\/detail\/(\d+))', self.url)
 
-        if content_type > 1:
-            self.get_show_metadata(driver)
-        else:
-            self.get_movie_metadata(driver)
+        content_type = self.get_content_type(content_search.group(2))
+        content_id = content_search.group(3)
+        # driver = get_dynamic_html(self.url)
+
+        title_url = ''
+
+        title_url = self.api['title'].format(
+            content_id=content_id, content_type=content_type)
+        res = self.session.post(title_url, timeout=5)
+        if res.ok:
+            data = res.json()
+            if data.get('data'):
+                data = data['data']['content']
+            else:
+                self.logger.error(data['message'])
+                sys.exit(1)
+
+            if content_type == 1:
+                self.movie_metadata(data)
+            else:
+                self.series_metadata(data)
+
+        # if content_type > 1:
+        #     self.get_show_metadata(driver)
+        # else:
+        #     self.get_movie_metadata(driver)
+

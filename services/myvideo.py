@@ -1,7 +1,7 @@
 import re
 import logging
 import orjson
-from common.utils import plex_find_lib, text_format
+from utils.helper import plex_find_lib, text_format
 from services.service import Service
 
 
@@ -71,7 +71,7 @@ class MyVideo(Service):
                                 episode_index).uploadPoster(url=episode_poster)
 
     def get_movie_metadata(self, data, rating):
-        title = data['name'].strip().replace('預告', '')
+        title = data['name'].strip().replace('預告', '').replace(' 搶先版', '')
 
         movie_synopsis = text_format(data['description'])
         movie_poster = data['image']

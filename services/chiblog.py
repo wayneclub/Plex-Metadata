@@ -1,7 +1,7 @@
 import re
 from bs4 import BeautifulSoup
-from common.utils import plex_find_lib, text_format
-from common.dictionary import translate_text
+from utils.helper import plex_find_lib, text_format
+from utils.dictionary import translate_text
 
 
 def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):

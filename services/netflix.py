@@ -1,15 +1,20 @@
+from encodings import utf_8
+import json
 import sys
 import re
 import os
 import logging
-import json
-from os.path import dirname
-from http.cookiejar import MozillaCookieJar
+from time import time
+import orjson
 import requests
 from bs4 import BeautifulSoup
+from configs.config import Platform
 from services.service import Service
-from common.utils import plex_find_lib, text_format
-from common.dictionary import translate_text
+from utils.cookies import Cookies
+from utils.helper import download_file, driver_init, multi_thread_download, plex_find_lib, text_format
+from utils.dictionary import translate_text
+from utils.muxer import Muxer
+from utils.subtitle import convert_subtitle
 
 
 class Netflix(Service):
@@ -17,33 +22,26 @@ class Netflix(Service):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
 
-        id_search = re.search(r'\/(title|watch)\/(\d+)', self.url)
-        self.netflix_id = id_search.group(2)
+        self.credential = self.config.credential(Platform.NETFLIX)
+        self.cookies = Cookies(self.credential)
 
-        dirPath = dirname(dirname(__file__)).replace("\\", "/")
+        self.metadata_language = self.credential['metadata_language']
 
-        self.cookies = ""
-        self.build = ""
-
-        self.config = {
-            "cookies_file": os.path.join(os.path.join(dirPath, 'config'), 'cookies.txt'),
-            "cookies_txt": os.path.join(os.path.join(dirPath, 'config'), 'netflix.com_cookies.txt'),
-            "language": "zh-Hant"
-        }
+        self.driver = ''
+        self.netflix_id = ''
+        self.build_id = ''
 
         self.api = {
             'metadata_1': 'https://www.netflix.com/nq/website/memberapi/{build_id}/metadata?movieid={netflix_id}&imageFormat=webp&withSize=true&materialize=true&_=1641798218310',
-            'metadata_2': 'https://www.netflix.com/api/shakti/{build_id}/metadata?movieid={netflix_id}&isWatchlistEnabled=false&isShortformEnabled=false&isVolatileBillboardsEnabled=false&drmSystem=widevine&languages={language}&imageFormat=webp'
+            'metadata_2': 'https://www.netflix.com/api/shakti/{build_id}/metadata?movieid={netflix_id}&isWatchlistEnabled=false&isShortformEnabled=false&isVolatileBillboardsEnabled=false&drmSystem=widevine&languages={language}&imageFormat=webp',
+            'trailer': 'https://www.netflix.com/playapi/cadmium/manifest/1?reqAttempt=1&reqName=manifest&clienttype=akira&uiversion=v9b6798ed&browsername=safari&browserversion=15.4.0&osname=mac&osversion=10.15.7'
         }
 
-    def get_build(self, cookies):
-        build_regex = r'"BUILD_IDENTIFIER":"([a-z0-9]+)"'
-
-        session = requests.Session()
-        session.headers = {
+    def get_build_id(self, cookies):
+        headers = {
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36",
+            "User-Agent": self.user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-Mode": "navigate",
@@ -51,65 +49,21 @@ class Netflix(Service):
             "Accept-Language": "en,en-US;q=0.9",
         }
 
-        res = session.get("https://www.netflix.com/browse", cookies=cookies)
+        res = self.session.get(
+            url="https://www.netflix.com/browse", headers=headers, cookies=cookies)
 
-        if not re.search(build_regex, res.text):
-            print(
-                "cannot get BUILD_IDENTIFIER from the cookies you saved from the browser..."
-            )
-            sys.exit()
-
-        return re.search(build_regex, res.text).group(1)
-
-    def save(self, cookies, build):
-        cookie_data = {}
-        for name, value in cookies.items():
-            cookie_data[name] = [value, 0]
-        logindata = {"BUILD_IDENTIFIER": build, "cookies": cookie_data}
-        with open(self.config["cookies_file"], "w", encoding="utf8") as f:
-            f.write(json.dumps(logindata, indent=4))
-            f.close()
-        os.remove(self.config["cookies_txt"])
-
-    def read_userdata(self):
-        cookies = None
-        build = None
-
-        if not os.path.isfile(self.config["cookies_file"]):
-            try:
-                cj = MozillaCookieJar(self.config["cookies_txt"])
-                cj.load()
-            except Exception:
-                print("invalid netscape format cookies file")
-                sys.exit()
-
-            cookies = dict()
-
-            for cookie in cj:
-                cookies[cookie.name] = cookie.value
-
-            build = self.get_build(cookies)
-            self.save(cookies, build)
-
-        with open(self.config["cookies_file"], "rb") as f:
-            content = f.read().decode("utf-8")
-
-        if "NetflixId" not in content:
-            self.logger.warning("(Some) cookies expired, renew...")
-            return cookies, build
-
-        jso = json.loads(content)
-        build = jso["BUILD_IDENTIFIER"]
-        cookies = jso["cookies"]
-        for cookie in cookies:
-            cookie_data = cookies[cookie]
-            value = cookie_data[0]
-            if cookie != "flwssn":
-                cookies[cookie] = value
-        if cookies.get("flwssn"):
-            del cookies["flwssn"]
-
-        return cookies, build
+        if res.ok:
+            build_regex = re.search(
+                r'"BUILD_IDENTIFIER":"([a-z0-9]+)"', res.text)
+            if build_regex:
+                return build_regex.group(1)
+            else:
+                self.logger.error(
+                    "Can't get BUILD_IDENTIFIER from the cookies you saved from the browser...")
+                sys.exit(1)
+        else:
+            self.logger.error(res.text)
+            sys.exit(1)
 
     def shakti_api(self, url):
         headers = {
@@ -122,36 +76,40 @@ class Netflix(Service):
             "Pragma": "no-cache",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
-            "X-Netflix.browserName": "Safari",
-            "X-Netflix.browserVersion": "15",
+            "User-Agent": self.user_agent,
+            "X-Netflix.browserName": "Chrome",
+            "X-Netflix.browserVersion": "98",
             "X-Netflix.clientType": "akira",
             "X-Netflix.osFullName": "Mac OS X",
             "X-Netflix.osName": "Mac OS X",
             "X-Netflix.osVersion": "10.15.7"
         }
 
+        cookies = self.cookies.get_cookies()
+
         resp = requests.get(
-            url=url, headers=headers, cookies=self.cookies
+            url=url, headers=headers, cookies=cookies
         )
 
         if resp.ok:
             return resp.json()
         elif resp.status_code == 401:
             self.logger.warning("401 Unauthorized, cookies is invalid.")
+            os.remove(self.credential['cookies_file'])
+            sys.exit(-1)
         elif resp.text.strip() == "":
             self.logger.error(
                 "title is not available in your Netflix region.")
-            exit(-1)
+            sys.exit(-1)
         else:
-            # os.remove(self.config["cookies_file"])
+            if os.path.exists(self.credential["cookies_file"]):
+                os.remove(self.credential["cookies_file"])
             self.logger.warning(
                 "Error getting metadata: Cookies expired\nplease fetch new cookies.txt"
             )
-            exit(-1)
+            sys.exit(-1)
 
-    def get_metadata(self, data):
-
+    def get_metadata(self, data, html_page):
         title = data['title']
 
         if data['type'] == 'show':
@@ -167,13 +125,10 @@ class Netflix(Service):
                                   background=show_background)
 
             season_synopsis_list = []
-            res = self.session.get(self.url)
-            if res.ok:
-                html_page = BeautifulSoup(res.text, 'lxml')
 
-                for season in html_page.find_all('div', class_='season'):
-                    season_synopsis_list.append(season.find(
-                        'p', class_='season-synopsis').get_text(strip=True))
+            for season in html_page.findAll('div', class_='season'):
+                season_synopsis_list.append(season.find(
+                    'p', class_='season-synopsis').get_text(strip=True))
 
             if not self.print_only:
                 show = plex_find_lib(self.plex, 'show', self.plex_title, title)
@@ -186,15 +141,13 @@ class Netflix(Service):
                     show.uploadPoster(url=show_poster)
                     show.uploadArt(url=show_background)
 
-            episode_seq = 0
             for index, season in enumerate(data['seasons']):
                 season_index = season['seq']
                 season_title = season['title']
-                season_synopsis = text_format(
-                    season_synopsis_list[index])
 
-                if index > 0:
-                    episode_seq += len(data['seasons'][index-1]['episodes'])
+                if season_synopsis_list:
+                    season_synopsis = text_format(
+                        season_synopsis_list[index])
 
                 print(f"\n{season_title}\n{season_synopsis}")
 
@@ -206,20 +159,15 @@ class Netflix(Service):
                             "summary.value": season_synopsis,
                             "summary.locked": 1,
                         })
-                        if self.replace_poster and season_index == 1:
+                        if self.replace_poster and season_index == 1 and len(data['seasons']) == 1:
                             show.season(season_index).uploadPoster(
                                 url=show_poster)
 
-                for index, episode in enumerate(season['episodes'], start=1):
-                    if episode['seq'] > episode_seq:
-                        episode_index = episode['seq'] - episode_seq
-                    elif index != episode['seq']:
-                        episode_index = index
-                    else:
-                        episode_index = episode['seq']
+                for episode in season['episodes']:
+                    episode_index = episode['seq']
                     episode_title = episode['title']
 
-                    if not self.print_only and re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
+                    if not self.print_only and re.search(r'第 \d+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
                         episode_title = show.season(
                             season_index).episode(episode_index).title
 
@@ -274,7 +222,7 @@ class Netflix(Service):
 
     def get_extra_poster(self, poster, background):
         url = self.api['metadata_2'].format(
-            build_id=self.build, netflix_id=self.netflix_id, language=self.config['language'])
+            build_id=self.build_id, netflix_id=self.netflix_id, language=self.metadata_language)
         data = self.shakti_api(url)['video']
 
         extra_poster = next(
@@ -286,6 +234,140 @@ class Netflix(Service):
             print(f"\nExtra poster: {extra_poster}")
         if background != extra_background:
             print(f"\nExtra background: {extra_background}")
+
+    def get_trailer(self, trailer, title):
+        trailer_id = trailer['id']
+        trailer_title = trailer['title']
+
+        cookies = self.cookies.get_cookies()
+
+        payload = {
+            "version": 2,
+            "url": "manifest",
+            "id": int(time() * 100000000),
+            "languages": [
+                "zh-TW"
+            ],
+            "params": {
+                "type": "standard",
+                "manifestVersion": "v2",
+                "viewableId": trailer_id,
+                "profiles": [
+                    "heaac-2-dash",
+                    "heaac-2hq-dash",
+                    "playready-h264mpl30-dash",
+                    "playready-h264mpl31-dash",
+                    "playready-h264mpl40-dash",
+                    "playready-h264hpl30-dash",
+                    "playready-h264hpl31-dash",
+                    "playready-h264hpl40-dash",
+                    "dfxp-ls-sdh",
+                    "simplesdh",
+                    "nflx-cmisc",
+                    "imsc1.1",
+                    "BIF240",
+                    "BIF320"
+                ],
+                "flavor": "SUPPLEMENTAL",
+                "drmType": "fairplay",
+                "drmVersion": 25,
+                "usePsshBox": True,
+                "isBranching": False,
+                "useHttpsStreams": True,
+                "supportsUnequalizedDownloadables": True,
+                "imageSubtitleHeight": 720,
+                "uiVersion": "shakti-v9b6798ed",
+                "uiPlatform": "SHAKTI",
+                "clientVersion": "6.0034.747.911",
+                "supportsPreReleasePin": True,
+                "supportsWatermark": True,
+                "titleSpecificData": {
+                    f"{trailer_id}": {
+                        "unletterboxed": True
+                    }
+                },
+                "preferAssistiveAudio": False,
+                "isUIAutoPlay": True,
+                "isNonMember": False,
+                "desiredVmaf": "plus_lts",
+                "desiredSegmentVmaf": "plus_lts",
+                "requestSegmentVmaf": False,
+                "supportsPartialHydration": False,
+                "contentPlaygraph": [
+                    "start"
+                ],
+                "showAllSubDubTracks": False,
+                "maxSupportedLanguages": 2
+            }
+        }
+
+        res = self.session.post(self.api['trailer'],
+                                cookies=cookies, data=orjson.dumps(payload))
+
+        if res.ok:
+            print(res.json())
+            data = res.json()['result']
+            folder_path = os.path.join(os.path.join(
+                self.download_path, title), 'Trailers')
+            video_tracks = data['video_tracks'][0]
+            max_height = str(video_tracks.get('maxHeight'))
+            max_width = str(video_tracks.get('maxWidth'))
+            video_track = video_tracks['streams'][-1]
+            audio_track = data['audio_tracks'][0]['streams'][-1]
+            audio_language = audio_track['language']
+            audio_language = self.config.get_language_code(audio_language)
+            audio_language = next(
+                (language[0] for language in self.config.language_list() if audio_language in language), audio_language)
+
+            input_video = os.path.join(
+                folder_path, f"{trailer_title} [{max_height}p].mp4")
+            input_audio = os.path.join(
+                folder_path, f"{trailer_title} {audio_language}.aac")
+
+            os.makedirs(folder_path, exist_ok=True)
+
+            subtitles = list()
+
+            for subtitle in data['timedtexttracks']:
+                if subtitle.get('language') and not subtitle.get('isForcedNarrative'):
+                    subtitle_language = self.config.get_language_code(
+                        subtitle['language'])
+                    subtitle_file = os.path.join(
+                        folder_path, f"{trailer_title} {subtitle_language}.dfxp")
+                    sub_key = list(subtitle['ttDownloadables']['imsc1.1']['downloadUrls'].keys(
+                    ))[0]
+                    subtitle_url = subtitle['ttDownloadables']['imsc1.1']['downloadUrls'][sub_key]
+                    subtitles.append(
+                        {'name': subtitle_file, 'url': subtitle_url})
+
+            multi_thread_download(subtitles)
+
+            download_file(url=video_track['urls']
+                          [0]['url'], output_path=input_video)
+            download_file(url=audio_track['urls']
+                          [0]['url'], output_path=input_audio)
+
+            convert_subtitle(folder_path=folder_path)
+
+            mkvmuxer = Muxer(
+                title=trailer_title,
+                folder_path=folder_path,
+                max_height=max_height,
+                max_width=max_width,
+                source=Platform.NETFLIX
+            )
+            muxed_file = mkvmuxer.start_mux()
+
+            output = muxed_file.replace(
+                os.path.basename(muxed_file), f"{trailer['title']}.mkv")
+
+            os.rename(muxed_file, output)
+
+            self.logger.info("\n%s ...Done!",
+                             os.path.basename(output))
+
+        else:
+            print(res.text)
 
     def get_static_metadata(self, html_page, change_poster_only=False, translate=False):
         title = html_page.find(
@@ -335,34 +417,48 @@ class Netflix(Service):
                     episode_num = episode_text[1]
 
                     episode_regex = re.search(
-                        r'第 ([0-9]+) 季第 ([0-9]+) 集', episode_num)
+                        r'第 (\d+) 季第 (\d+) 集', episode_num)
                     if episode_regex:
                         season_index = int(episode_regex.group(1))
                         episode_index = int(episode_regex.group(2))
                         episode_title = (episode_text[0][2:]).strip()
                     else:
                         episode_regex = re.search(
-                            r'Episode ([0-9]+) of Season ([0-9]+)\.', episode_num)
+                            r'Watch (.+?)\. Episode (\d+) of Season (\d+)\.', episode_num)
                         if episode_regex:
                             season_index = int(episode_regex.group(2))
-                            episode_index = int(episode_regex.group(1))
-                            episode_title = f'第 {episode_index} 集'
+                            episode_index = int(episode_regex.group(3))
+                            episode_title = episode_regex.group(1).strip()
+                        else:
+                            episode_regex = re.search(
+                                r'Episode (\d+) of Season (\d+)\.', episode_num)
+                            if episode_regex:
+                                season_index = int(episode_regex.group(2))
+                                episode_index = int(episode_regex.group(1))
+                                episode_title = f'第 {episode_index} 集'
                 else:
                     episode_num = episode_text[0].replace(
                         '播放“', '').replace('”', '')
                     episode_regex = re.search(
-                        r'Episode ([0-9]+) of Season ([0-9]+)\.', episode_num)
+                        r'Watch (.+?)\. Episode (\d+) of Season (\d+)\.', episode_num)
                     if episode_regex:
                         season_index = int(episode_regex.group(2))
-                        episode_index = int(episode_regex.group(1))
-                    episode_title = (episode_num).strip()
-                    if not re.search(r'[\u4E00-\u9FFF]', episode_title):
-                        episode_title = f'第 {episode_index} 集'
+                        episode_index = int(episode_regex.group(3))
+                        episode_title = episode_regex.group(1).strip()
+                    else:
+                        episode_regex = re.search(
+                            r'Episode (\d+) of Season (\d+)\.', episode_num)
+                        if episode_regex:
+                            season_index = int(episode_regex.group(2))
+                            episode_index = int(episode_regex.group(1))
+                        episode_title = (episode_num).strip()
+                        if not re.search(r'[\u4E00-\u9FFF]', episode_title):
+                            episode_title = f'第 {episode_index} 集'
 
                 # if season_index == 1 and (episode_index == 9 or episode_index == 10):
                 #     break
 
-                if not self.print_only and re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
+                if not self.print_only and re.search(r'第 \d+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
                     episode_title = show.season(
                         season_index).episode(episode_index).title
 
@@ -444,22 +540,64 @@ class Netflix(Service):
                                 episode_index).uploadPoster(url=episode_img)
 
     def main(self):
+        self.driver = driver_init()
         if 'webcache' in self.url:
-            res = self.session.get(self.url)
-            if res.ok:
-                html_page = BeautifulSoup(res.text, 'lxml')
-                change_poster_only = False
-                if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', self.url):
-                    change_poster_only = True
-                if 'sg-zh' in self.url:
-                    self.get_static_metadata(
-                        html_page, change_poster_only, translate=True)
-                else:
-                    self.get_static_metadata(html_page, change_poster_only)
+            self.driver.get(self.url)
+            html_page = BeautifulSoup(self.driver.page_source, 'lxml')
+            change_poster_only = False
+            if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', self.url):
+                change_poster_only = True
+            if 'sg-zh' in self.url and self.metadata_language == 'zh-Hant':
+                self.get_static_metadata(
+                    html_page, change_poster_only, translate=True)
+            else:
+                self.get_static_metadata(html_page, change_poster_only)
         else:
-            self.cookies, self.build = self.read_userdata()
+            netflix_id = re.findall(
+                r'(title\/|watch\/|browse.*\?.*jbv=|search.*\?.*jbv=)(\d+)', self.url.lower())
+            if not netflix_id:
+                self.logger.error("\nCan't detect netflix id: %s", self.url)
+                sys.exit(-1)
+            self.netflix_id = netflix_id[0][-1]
+            self.logger.debug("netflix_id: %s", netflix_id)
+
+            self.cookies.load_cookies('NetflixId')
+            cookies = self.cookies.get_cookies()
+            if cookies.get('BUILD_IDENTIFIER'):
+                self.build_id = cookies.get('BUILD_IDENTIFIER')
+            else:
+                self.build_id = self.get_build_id(cookies)
+                self.cookies.save_cookies(cookies, self.build_id)
+
             url = self.api['metadata_1'].format(
-                build_id=self.build, netflix_id=self.netflix_id)
+                build_id=self.build_id, netflix_id=self.netflix_id)
+
             data = self.shakti_api(url)
             self.logger.debug("Metadata: %s", data)
-            self.get_metadata(data['video'])
+
+            self.driver.get(self.url)
+            html_page = BeautifulSoup(self.driver.page_source, 'lxml')
+            # print(data)
+            self.get_metadata(data['video'], html_page)
+
+        if 'additionalVideos' in self.driver.page_source:
+            self.logger.info("\nDownload trailer:")
+            trailer_regex = re.search(
+                r'(\{"type":"additionalVideos","data":.+\}\}),\{"type":"seasonsAndEpisodes"', self.driver.page_source)
+            content = ""
+            if trailer_regex:
+                content = trailer_regex.group(1)
+            else:
+                trailer_regex = re.search(
+                    r'(\{"type":"additionalVideos","data":.+\}\}),\{"type":"moreDetails"', self.driver.page_source)
+                if trailer_regex:
+                    content = trailer_regex.group(1)
+            if content:
+                trailer_data = orjson.loads(content.encode().decode(
+                    'unicode-escape'))['data']
+                # print(trailer_data)
+                # for trailer in trailer_data['supplementalVideos']:
+                #     self.get_trailer(
+                #         trailer=trailer, title=trailer_data['subheaderText'])
+
+        self.driver.quit()

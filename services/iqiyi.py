@@ -2,8 +2,8 @@ import re
 import logging
 import orjson
 from services.service import Service
-from common.utils import plex_find_lib, text_format
-from common.dictionary import convert_chinese_number
+from utils.helper import plex_find_lib, text_format
+from utils.dictionary import convert_chinese_number
 
 
 class IQIYI(Service):
@@ -29,10 +29,12 @@ class IQIYI(Service):
         print(f"\n{title}\n{show_synopsis}\n{show_poster}")
         if not self.print_only:
             show = plex_find_lib(self.plex, 'show', self.plex_title, title)
-            show.edit(**{
-                "summary.value": show_synopsis,
-                "summary.locked": 1,
-            })
+
+            if season_index == 1:
+                show.edit(**{
+                    "summary.value": show_synopsis,
+                    "summary.locked": 1,
+                })
 
             show.season(season_index).edit(**{
                 "title.value": f'第 {season_index} 季',
@@ -40,9 +42,9 @@ class IQIYI(Service):
             })
 
             if self.replace_poster:
-                show.uploadPoster(url=show_poster)
                 if season_index == 1:
-                    show.season(season_index).uploadPoster(url=show_poster)
+                    show.uploadPoster(url=show_poster)
+                show.season(season_index).uploadPoster(url=show_poster)
 
         episode_list = []
         if 'cacheAlbumList' in data and '1' in data['cacheAlbumList'] and len(data['cacheAlbumList']['1']) > 0:

@@ -6,7 +6,8 @@ This module is default service
 """
 import logging
 import requests
-from common.utils import connect_plex
+from configs.config import Config
+from utils.helper import connect_plex
 
 
 class Service(object):
@@ -28,4 +29,24 @@ class Service(object):
         else:
             self.plex = None
 
+        self.config = Config()
         self.session = requests.Session()
+        self.user_agent = self.config.get_user_agent()
+        self.session.headers = {
+            'user-agent': self.user_agent
+        }
+
+        self.ip_info = args.proxy
+        self.proxy = self.ip_info['proxy']
+        if self.proxy:
+            self.session.proxies.update(self.proxy)
+            self.proxy = list(self.proxy.values())[0]
+        else:
+            self.proxy = ''
+
+        if args.region:
+            self.region = args.region.upper()
+        else:
+            self.region = self.ip_info['country']
+
+        self.download_path = self.config.paths()['downloads']

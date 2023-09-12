@@ -2,7 +2,7 @@ import re
 import os
 import logging
 from urllib.parse import urlparse
-from common.utils import plex_find_lib, get_static_html, text_format
+from utils.helper import plex_find_lib, get_static_html, text_format
 from services.service import Service
 
 
@@ -88,6 +88,7 @@ class HBOGOAsia(Service):
                         parent_id=season['contentId'], territory=self.territory)
                     self.logger.debug(season_url)
 
+                    season_background = ""
                     for image in season['materials']:
                         if 'largescreen_thumbnail' in image['href']:
                             season_background = image['href']
@@ -99,8 +100,8 @@ class HBOGOAsia(Service):
                         season_synopsis = text_format(
                             show.season(season_index).summary)
 
-                    print(
-                        f"\n{season_title}\n{season_synopsis}\n{season_background}")
+                    self.logger.info("\n%s\n%s\n%s", season_title,
+                                     season_synopsis, season_background)
 
                     if season_index and not self.print_only:
                         if season_index == 1 and re.search(r'[\u4E00-\u9FFF]', season_synopsis):

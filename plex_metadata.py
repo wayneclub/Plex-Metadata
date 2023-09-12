@@ -1,5 +1,7 @@
 """
 This module is to get Netflix, HBOGo, Friday, iTune, etc metadata and automatically apply to Plex.
+
+Support doc
 https://python-plexapi.readthedocs.io/en/latest/index.html
 """
 
@@ -20,7 +22,9 @@ from services.friday import Friday
 from services.myvideo import MyVideo
 from services.kktv import KKTV
 from services.hamivideo import HamiVideo
-from common.utils import get_ip_location, connect_plex, get_static_html, get_dynamic_html
+from configs.config import Config, script_name, __version__
+from utils.helper import connect_plex, get_static_html, get_dynamic_html, save_html
+from utils.proxy_environ import proxy_env
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -55,14 +59,40 @@ if __name__ == "__main__":
                         '--output',
                         dest='output',
                         help='下載路徑')
+    parser.add_argument('-proxy',
+                        '--proxy',
+                        dest='proxy',
+                        nargs='?',
+                        const=True,
+                        help="proxy")
+    parser.add_argument("--pv",
+                        '--private-vpn',
+                        action="store",
+                        dest="privtvpn",
+                        help="add country for privtvpn proxies.",
+                        default=0)
+    parser.add_argument("-n",
+                        '--nord-vpn',
+                        action="store",
+                        dest="nordvpn",
+                        help="add country for nordvpn proxies.",
+                        default=0)
     parser.add_argument(
         '-d',
         '--debug',
         action='store_true',
         help="enable debug logging",
     )
+    parser.add_argument(
+        '-v',
+        '--version',
+        action='version',
+        version='{script_name} {version}'.format(
+            script_name=script_name, version=__version__)
+    )
 
     args = parser.parse_args()
+    config = Config()
 
     if args.debug:
         logging.basicConfig(
@@ -81,9 +111,10 @@ if __name__ == "__main__":
             level=logging.INFO,
         )
 
-    ip = get_ip_location()
-    logging.info(
-        'ip: %s (%s)', ip['ip'], ip['country'])
+    config.check_binaries(config.bin())
+
+    ip_info = proxy_env(args).Load()
+    args.proxy = ip_info
 
     url = args.url
     title = args.title
@@ -160,7 +191,7 @@ if __name__ == "__main__":
     elif 'chiblog' in url:
         chiblog.get_metadata(get_dynamic_html(
             url), plex, title, print_only, season_index)
-    elif 'candybear98.pixnet.net' in url:
+    elif 'pixnet.net' in url:
         pixnet.get_metadata(get_static_html(
             url), plex, title, print_only, season_index)
     elif 'tpcatv' in url:

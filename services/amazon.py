@@ -2,7 +2,7 @@ import logging
 import re
 import orjson
 from urllib.parse import urlsplit
-from common.utils import plex_find_lib, text_format
+from utils.helper import plex_find_lib, text_format
 from services.service import Service
 
 

@@ -1,8 +1,8 @@
 import re
 import time
 from selenium.webdriver.common.by import By
-from common.utils import plex_find_lib, get_static_html, text_format
-from common.dictionary import translate_text, convert_chinese_number
+from utils.helper import plex_find_lib, get_static_html, text_format
+from utils.dictionary import translate_text, convert_chinese_number
 
 
 def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False, season_index=1):

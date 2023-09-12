@@ -3,5 +3,8 @@ selenium
 opencc
 wget
 plexapi
+requests
 orjson
-chromedriver-autoinstaller
+webdriver-manager
+Pillow
+pymediainfo

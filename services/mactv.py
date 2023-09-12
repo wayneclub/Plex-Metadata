@@ -1,7 +1,7 @@
 import re
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
-from common.utils import get_dynamic_html, plex_find_lib, text_format
+from utils.helper import get_dynamic_html, plex_find_lib, text_format
 
 
 def get_metadata(driver, plex, plex_title="", print_only=False, season_index=1):

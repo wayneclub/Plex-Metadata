@@ -4,7 +4,7 @@ import re
 import json
 from bs4 import BeautifulSoup
 from services.service import Service
-from common.utils import get_dynamic_html, plex_find_lib, save_html, text_format
+from utils.helper import get_dynamic_html, plex_find_lib, save_html, text_format
 
 
 class GooglePlay(Service):

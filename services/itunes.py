@@ -1,7 +1,7 @@
 import re
 import logging
 from services.service import Service
-from common.utils import plex_find_lib, text_format
+from utils.helper import plex_find_lib, text_format
 
 
 class iTunes(Service):

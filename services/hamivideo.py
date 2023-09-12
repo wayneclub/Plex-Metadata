@@ -2,7 +2,7 @@ import re
 import logging
 import orjson
 from bs4 import BeautifulSoup
-from common.utils import plex_find_lib, text_format
+from utils.helper import plex_find_lib, text_format
 from services.service import Service
 
 
@@ -42,7 +42,10 @@ class HamiVideo(Service):
             match = web_content.findAll(
                 'script', attrs={'type': 'application/ld+json'})
             if match:
-                data = orjson.loads(str(match[1].string))
-
+                data = orjson.loads(str(match[0].string))
                 if data['@type'] == 'Movie':
                     self.get_movie_metadata(data)
+            else:
+                self.logger.error("Not found!")
+        else:
+            self.logger.error(res.text)

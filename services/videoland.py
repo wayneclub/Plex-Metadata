@@ -3,7 +3,7 @@ import os
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
-from common.utils import plex_find_lib, save_html, text_format
+from utils.helper import plex_find_lib, save_html, text_format
 
 
 def get_metadata(driver, plex, plex_title="", replace_poster="", print_only=False, season_index=1):

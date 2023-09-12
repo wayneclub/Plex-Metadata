@@ -2,7 +2,7 @@ import os
 import math
 import re
 import logging
-from common.utils import compress_image, plex_find_lib, get_ip_location, text_format, download_images
+from utils.helper import compress_image, plex_find_lib, text_format, download_images
 from services.service import Service
 
 
@@ -10,11 +10,6 @@ class DisneyPlus(Service):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
-
-        if args.region:
-            self.region = args.region.upper()
-        else:
-            self.region = get_ip_location()['country']
 
         self.output = args.output
         if not self.output:

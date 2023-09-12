@@ -2,7 +2,7 @@ import os
 import re
 import logging
 import orjson
-from common.utils import plex_find_lib, text_format
+from utils.helper import plex_find_lib, text_format
 from services.service import Service
 
 
@@ -12,7 +12,8 @@ class AppleTV(Service):
         self.logger = logging.getLogger(__name__)
 
         self.api = {
-            'episodes': 'https://tv.apple.com/api/uts/v2/view/show/{show_id}/episodes?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=54&pfm=web&locale=zh-Hant&skip=0&count=100'
+            'movies': 'https://tv.apple.com/api/uts/v3/movies/{movie_id}?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=58&pfm=web&locale=zh-Hant&l=zh&ctx_brand=tvs.sbd.4000',
+            'series': 'https://tv.apple.com/api/uts/v3/shows/{show_id}/episodes?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=58&pfm=web&locale=zh-Hant&includeSeasonSummary=true&l=zh'
         }
 
     def get_movie_metadata(self, data):
@@ -128,6 +129,7 @@ class AppleTV(Service):
                             episode_index).uploadPoster(url=episode_poster)
 
     def main(self):
+
         res = self.session.get(self.url)
         if res.ok:
             match = re.search(
@@ -136,10 +138,11 @@ class AppleTV(Service):
 
             id = next(key for key in list(data.keys())
                       if re.sub(r'(.+)\?.+', '\\1.caller.web', os.path.basename(self.url)) in key and 'personalized' not in key)
+            print(orjson.loads(data[id])['d']['data'])
 
             data = orjson.loads(data[id])['d']['data']['content']
             self.logger.debug(data)
-            if data['type'] == 'Movie':
+            if '/movies/' in self.url:
                 self.get_movie_metadata(data)
             else:
                 self.get_show_metadata(data)

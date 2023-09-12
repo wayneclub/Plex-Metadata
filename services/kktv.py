@@ -2,8 +2,9 @@ import re
 import os
 import logging
 import orjson
-from common.utils import plex_find_lib, text_format, save_html
+from utils.helper import plex_find_lib, text_format, save_html
 from services.service import Service
+
 
 class KKTV(Service):
     def __init__(self, args):
@@ -22,7 +23,8 @@ class KKTV(Service):
 
         show_synopsis = text_format(data['summary'])
         show_poster = data['cover'].replace('.xs', '.lg')
-        show_backgrounds = [img.replace('.xs', '.lg') for img in data['stills']]
+        show_backgrounds = [img.replace('.xs', '.lg')
+                            for img in data['stills']]
 
         print(f"\n{title}\n{show_synopsis}\n{show_poster}\n{show_backgrounds}")
 
@@ -54,7 +56,7 @@ class KKTV(Service):
 
                 for episode in season['episodes']:
                     episode_index = int(
-                                episode['id'].replace(episode['seriesId'], ''))
+                        episode['id'].replace(episode['seriesId'], ''))
 
                     episode_poster = episode['still'].replace('.xs', '.lg')
 
@@ -76,6 +78,7 @@ class KKTV(Service):
                         if self.replace_poster:
                             show.season(season_index).episode(
                                 episode_index).uploadPoster(url=episode_poster)
+
     def main(self):
         drama_id = os.path.basename(self.url)
         play_url = self.api['play'].format(drama_id=drama_id)
