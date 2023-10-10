@@ -21,6 +21,8 @@ downloads/
 *.js
 *.html
 *.jpg
+*.png
+*.webp
 *.torrent
 raw.json
 cookies*.txt

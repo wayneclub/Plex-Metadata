@@ -3,10 +3,10 @@ import math
 import re
 import logging
 from utils.helper import compress_image, plex_find_lib, text_format, download_images
-from services.service import Service
+from services.baseservice import BaseService
 
 
-class DisneyPlus(Service):
+class DisneyPlus(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

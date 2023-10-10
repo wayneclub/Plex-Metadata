@@ -2,10 +2,10 @@ import re
 import logging
 import orjson
 from utils.helper import plex_find_lib, text_format
-from services.service import Service
+from services.baseservice import BaseService
 
 
-class MyVideo(Service):
+class MyVideo(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

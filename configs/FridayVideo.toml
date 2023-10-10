@@ -1,0 +1,6 @@
+[endpoints]
+titles = 'https://video.friday.tw/api2/content/get?contentId={content_id}&contentType={content_type}&srcRecommendId=-1&recommendId=-1&eventPageId=&offset=0&length=1'
+episodes = 'https://video.friday.tw/api2/episode/list?contentId={content_id}&contentType={content_type}&offset=0&length=100&mode=2'
+manifest = 'https://video.friday.tw/api2/streaming/get?streamingId={streaming_id}&streamingType={streaming_type}&contentType={content_type}&contentId={content_id}&clientId={client_id}&haveSubtitle={subtitle}&isEst=false&_={time_stamp}'
+license = 'https://widevine.video.friday.tw/?deviceId=Mzg4NTllNGQtZmJhMS0zMGYxLWIzMDEtYzMxOWE1NjZiNGNk'
+fet_monitor = '{url}/FETMonitor'

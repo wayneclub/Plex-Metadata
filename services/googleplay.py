@@ -3,11 +3,11 @@ import logging
 import re
 import json
 from bs4 import BeautifulSoup
-from services.service import Service
+from services.baseservice import BaseService
 from utils.helper import get_dynamic_html, plex_find_lib, save_html, text_format
 
 
-class GooglePlay(Service):
+class GooglePlay(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

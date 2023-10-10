@@ -3,10 +3,10 @@ import os
 import logging
 import orjson
 from utils.helper import plex_find_lib, text_format, save_html
-from services.service import Service
+from services.baseservice import BaseService
 
 
-class KKTV(Service):
+class KKTV(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

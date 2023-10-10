@@ -3,10 +3,10 @@ import logging
 import orjson
 from bs4 import BeautifulSoup
 from utils.helper import plex_find_lib, text_format
-from services.service import Service
+from services.baseservice import BaseService
 
 
-class HamiVideo(Service):
+class HamiVideo(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

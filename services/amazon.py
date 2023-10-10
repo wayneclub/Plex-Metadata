@@ -3,10 +3,10 @@ import re
 import orjson
 from urllib.parse import urlsplit
 from utils.helper import plex_find_lib, text_format
-from services.service import Service
+from services.baseservice import BaseService
 
 
-class Amazon(Service):
+class Amazon(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

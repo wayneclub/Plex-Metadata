@@ -14,19 +14,79 @@ from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 from bs4 import BeautifulSoup
+from natsort import natsorted
 import requests
+from requests import Session
 from selenium import webdriver
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount
 import multiprocessing
 from tqdm import tqdm
+import validators
 import wget
 from PIL import Image
+import numpy as np
+import cv2
 from io import BytesIO
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 
-from configs.config import Config, Platform
+from configs.config import config, directories
+from utils import Logger
+
+class EpisodesNumbersHandler(object):
+    """
+    Convert user-input episode range to list of int numbers
+    """
+
+    def __init__(self, episodes):
+        self.episodes = episodes
+
+    def number_range(self, start: int, end: int):
+        if list(range(start, end + 1)) != []:
+            return list(range(start, end + 1))
+
+        if list(range(end, start + 1)) != []:
+            return list(range(end, start + 1))
+
+        return [start]
+
+    def list_number(self, number: str):
+        if number.isdigit():
+            return [int(number)]
+
+        if number.strip() == "~" or number.strip() == "":
+            return self.number_range(1, 999)
+
+        if "-" in number:
+            start, end = number.split("-")
+            if start.strip() == "" or end.strip() == "":
+                raise ValueError(f"wrong number: {number}")
+            return self.number_range(int(start), int(end))
+
+        if "~" in number:
+            start, _ = number.split("~")
+            if start.strip() == "":
+                raise ValueError(f"wrong number: {number}")
+            return self.number_range(int(start), 999)
+
+        return
+
+    def sort_numbers(self, numbers):
+        sorted_numbers = []
+        for number in numbers.split(","):
+            sorted_numbers += self.list_number(number.strip())
+
+        return natsorted(list(set(sorted_numbers)))
+
+    def get_episodes(self):
+        return (
+            self.sort_numbers(
+                str(self.episodes).lstrip("0")
+            )
+            if self.episodes
+            else self.sort_numbers("~")
+        )
 
 
 def get_static_html(url, json_request=False):
@@ -132,13 +192,13 @@ def get_network_url(driver, search_url):
 
 
 def connect_plex():
-    credential = Config().credential(Platform.PLEX)
+    """Connect Plex"""
 
-    if credential['baseurl'] and credential['token']:
-        return PlexServer(credential['baseurl'], credential['token'])
-    elif credential['username'] and credential['password'] and credential['servername']:
-        account = MyPlexAccount(credential['username'], credential['password'])
-        return account.resource(credential['servername']).connect()
+    if config.plex['baseurl'] and config.plex['token']:
+        return PlexServer(config.plex['baseurl'], config.plex['token'])
+    elif config.plex['username'] and config.plex['password'] and config.plex['servername']:
+        account = MyPlexAccount(config.plex['username'], config.plex['password'])
+        return account.resource(config.plex['servername']).connect()
 
 
 def plex_find_lib(plex, lib_type, plex_title="", title=""):
@@ -252,20 +312,22 @@ def download_images(urls, folder_path):
 # def download_file(url, output):
 #     wget.download(url, out=output)
 
-def check_url_exist(url):
-    """Check url exist"""
-    try:
-        request.urlopen(url)
-    except HTTPError as exception:
-        # Return code error (e.g. 404, 501, ...)
-        logger.error("HTTPError: %s", exception.code)
-        return False
-    except URLError as exception:
-        # Not an HTTP-specific error (e.g. connection refused)
-        logger.error("URLError: %s", exception.reason)
-        return False
-    else:
-        return True
+def check_url_exist(url: str, session: Session):
+    """Validate url exist"""
+
+    if validators.url(url):
+        try:
+            response = session.head(url, timeout=10)
+            if response.ok:
+                return True
+
+        except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError) as error:
+            logger.error(
+                "Failure - Unable to establish connection: %s.", error)
+        except Exception as error:
+            logger.error("Failure - Unknown error occurred: %s.", error)
+
+    return False
 
 
 class DownloadProgressBar(tqdm):
@@ -305,6 +367,31 @@ def compress_image(url):
     image.save(image_path, 'webp', optimize=True, quality=100)
     return image_path
 
+def autocrop(url: str, session: Session) -> str:
+    """Crops any edges below or equal to threshold
+
+    Crops blank image to 1x1.
+
+    Returns cropped image.
+
+    """
+
+    # image = cv2.imread(url)
+    # image = Image.open(BytesIO(session.get(url, timeout=10).content))
+    image = np.asarray(bytearray(session.get(url, timeout=10).content), dtype="uint8")
+    image = cv2.imdecode(image, cv2.IMREAD_COLOR)
+
+    gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    _,thresh = cv2.threshold(gray,1,255,cv2.THRESH_BINARY)
+    x,y,w,h = cv2.boundingRect(thresh)
+    image = image[y:y+h,x:x+w]
+
+    os.makedirs(directories.images, exist_ok=True)
+    image_path = Path(directories.images / os.path.basename(url)).with_suffix('.webp')
+    cv2.imwrite(str(image_path), image)
+
+    return image_path
+
 
 def kill_process():
     os.system('killall chromedriver > /dev/null 2>&1')
@@ -320,4 +407,4 @@ def save_html(html_source, file='test.html'):
 
 
 if __name__:
-    logger = logging.getLogger(__name__)
+    logger = Logger.getLogger("helper")

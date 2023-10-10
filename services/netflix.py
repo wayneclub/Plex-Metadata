@@ -8,8 +8,8 @@ from time import time
 import orjson
 import requests
 from bs4 import BeautifulSoup
-from configs.config import Platform
-from services.service import Service
+from constants import Service
+from services.baseservice import BaseService
 from utils.cookies import Cookies
 from utils.helper import download_file, driver_init, multi_thread_download, plex_find_lib, text_format
 from utils.dictionary import translate_text
@@ -17,12 +17,12 @@ from utils.muxer import Muxer
 from utils.subtitle import convert_subtitle
 
 
-class Netflix(Service):
+class Netflix(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
 
-        self.credential = self.config.credential(Platform.NETFLIX)
+        self.credential = self.config.credential(Service.NETFLIX)
         self.cookies = Cookies(self.credential)
 
         self.metadata_language = self.credential['metadata_language']

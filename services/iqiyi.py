@@ -1,12 +1,12 @@
 import re
 import logging
 import orjson
-from services.service import Service
+from services.baseservice import BaseService
 from utils.helper import plex_find_lib, text_format
 from utils.dictionary import convert_chinese_number
 
 
-class IQIYI(Service):
+class IQIYI(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)

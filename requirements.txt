@@ -8,3 +8,6 @@ orjson
 webdriver-manager
 Pillow
 pymediainfo
+coloredlogs
+opencv-python
+numpy

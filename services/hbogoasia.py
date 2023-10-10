@@ -3,10 +3,10 @@ import os
 import logging
 from urllib.parse import urlparse
 from utils.helper import plex_find_lib, get_static_html, text_format
-from services.service import Service
+from services.baseservice import BaseService
 
 
-class HBOGOAsia(Service):
+class HBOGOAsia(BaseService):
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
