@@ -6,7 +6,6 @@ from typing import Union
 from requests.exceptions import RequestException
 from objects import Title
 from services.baseservice import BaseService
-from utils.helper import autocrop
 
 
 class FridayVideo(BaseService):
@@ -51,7 +50,6 @@ class FridayVideo(BaseService):
         if content_rating.get(rating):
             return content_rating.get(rating)
 
-
     def get_titles(self) -> Union[Title, list[Title]]:
         titles = []
         content_search = re.search(
@@ -94,7 +92,8 @@ class FridayVideo(BaseService):
         release_year = data['year']
         synopsis = data['introduction']
         content_rating = self.get_content_rating(str(data['rating']))
-        poster = f"https://vbmspic.video.friday.tw{data['imageUrl']}".replace('.jpg', '_XL.jpg')
+        poster = f"https://vbmspic.video.friday.tw{data['imageUrl']}".replace(
+            '.jpg', '_XL.jpg')
         if self.movie:
             titles.append(Title(
                 id_=self.url,
@@ -128,7 +127,9 @@ class FridayVideo(BaseService):
                     episode=episode['episode_index'],
                     episode_name=episode['separationName'],
                     episode_synopsis=episode['separationIntroduction'],
-                    episode_poster=autocrop(f"https://vbmspic.video.friday.tw{episode['stillImageUrl']}".replace('.jpg', '_XL.jpg'), self.session),
+                    episode_poster=f"https://vbmspic.video.friday.tw{episode['stillImageUrl']}".replace(
+                        '.jpg', '_XL.jpg'),
+                    autocrop=True,
                     source=self.source,
                     service_data={
                         'streaming_id': episode['streamingId'],
@@ -161,7 +162,7 @@ class FridayVideo(BaseService):
         episodes = []
         for episode in data['episodeList']:
             episode_index = re.search(
-                r'(sp)*(\d+)', episode['episodeName'].lower())
+                r'^(sp)*(\d+)$', episode['episodeName'].lower())
             if episode_index:
                 episode['episode_index'] = int(episode_index.group(2))
                 episode['season_index'] = 0 if episode_index.group(
@@ -183,4 +184,3 @@ class FridayVideo(BaseService):
                 self.log.exit(res.text)
         else:
             self.log.exit(res.text)
-

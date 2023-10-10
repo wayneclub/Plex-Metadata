@@ -9,7 +9,7 @@ class Title:
     def __init__(
         self, id_: str, type_: "Title.Types", name: str, year: Optional[int] = None, synopsis: Optional[str] = None, poster: Optional[str] = None, content_rating: Optional[str] = None,
         season: Optional[int] = None, season_name: Optional[str] = None, season_synopsis: Optional[str] = None, episode: Optional[int] = None, episode_name: Optional[str] = None,
-        episode_synopsis: Optional[str] = None, episode_poster: Optional[str] = None, source: Optional[str] = None, service_data: Optional[Any] = None
+        episode_synopsis: Optional[str] = None, episode_poster: Optional[str] = None, compress: bool = False, autocrop: bool = False, source: Optional[str] = None, service_data: Optional[Any] = None
     ) -> None:
         self.id = id_
         self.type = type_
@@ -20,15 +20,20 @@ class Title:
         self.poster = poster
         self.season = int(season or 0)
         self.season_name = season_name
-        self.season_synopsis = text_format(season_synopsis.strip()) if season_synopsis else ''
+        self.season_synopsis = text_format(
+            season_synopsis.strip()) if season_synopsis else ''
         self.episode = int(episode or 0)
-        self.episode_name = text_format(episode_name.strip()) if episode_name else ''
-        self.episode_synopsis =  text_format(episode_synopsis.strip()) if episode_synopsis else ''
+        self.episode_name = text_format(
+            episode_name.strip()) if episode_name else ''
+        self.episode_synopsis = text_format(
+            episode_synopsis.strip()) if episode_synopsis else ''
         self.episode_poster = episode_poster
+        self.compress = bool(compress)
+        self.autocrop = bool(autocrop)
         self.source = source
         self.service_data: Any = service_data or {}
 
-    def is_wanted(self, wanted_season: list, wanted_episode:list) -> bool:
+    def is_wanted(self, wanted_season: list, wanted_episode: list) -> bool:
         if self.type != Title.Types.TV or (not wanted_season and not wanted_episode):
             return True
         if not wanted_season or self.season in wanted_episode:
@@ -53,7 +58,8 @@ class Titles(list):
 
     def print(self) -> None:
         log = Logger.getLogger("Titles")
-        log.info(f"Title: {self.title_name}{' | ' + self.content_rating if self.content_rating else ''}")
+        log.info(
+            f"Title: {self.title_name}{' | ' + self.content_rating if self.content_rating else ''}")
         if self.synopsis:
             log.info(self.synopsis)
         if self.poster:

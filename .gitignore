@@ -29,3 +29,4 @@ cookies*.txt
 summary.txt
 test.py
 my_credential.json
+.vscode

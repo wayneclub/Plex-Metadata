@@ -13,7 +13,7 @@ from objects.titles import Title, Titles
 from services import service_map
 from services.baseservice import BaseService
 from utils.collections import as_list
-from utils.helper import check_url_exist
+from utils.helper import autocrop, check_url_exist
 from utils.io import load_toml
 from utils.plex import Plex
 from configs.config import app_name, __version__, directories, filenames
@@ -134,7 +134,8 @@ def main() -> None:
                     log.info(title.episode_poster)
 
                 if plex:
-                    show = plex.plex_find_lib('show', args.plex_title, title.name)
+                    show = plex.plex_find_lib(
+                        'show', args.plex_title, title.name)
                     if title.synopsis:
                         show.edit(**{
                             "summary.value": title.synopsis,
@@ -159,7 +160,15 @@ def main() -> None:
                             "summary.locked": 1,
                         })
 
-                    if re.search(r'^[剧第]([0-9 ]+)集$', show.season(title.season).episode(title.episode).title):
+                    plex_episode_title = show.season(
+                        title.season).episode(title.episode).title
+
+                    if title.episode_name and re.search(r'^[剧第]([0-9 ]+)集$', plex_episode_title):
+                        show.season(title.season).episode(title.episode).edit(**{
+                            "title.value": title.episode_name,
+                            "title.locked": 1,
+                        })
+                    else:
                         show.season(title.season).episode(title.episode).edit(**{
                             "title.value": title.episode_name if title.episode_name else f'第 {title.episode} 集',
                             "title.locked": 1,
@@ -172,19 +181,24 @@ def main() -> None:
                         })
 
                     if args.replace_poster and title.episode_poster:
+                        if title.autocrop:
+                            title.episode_poster = autocrop(
+                                title.episode_poster, service.session)
+
                         if check_url_exist(title.episode_poster, service.session):
                             show.season(title.season).episode(
                                 title.episode).uploadPoster(url=title.episode_poster)
                         elif Path(title.episode_poster).exists():
                             show.season(title.season).episode(
-                                        title.episode).uploadPoster(filepath=title.episode_poster)
+                                title.episode).uploadPoster(filepath=title.episode_poster)
                             os.remove(title.episode_poster)
             else:
                 log.info(
                     f"{title.name} ({title.year or '???'}){' | ' + title.content_rating if title.content_rating else ''}")
                 log.info(title.synopsis)
                 if plex:
-                    movie = plex.plex_find_lib('movie', args.plex_title, title.name)
+                    movie = plex.plex_find_lib(
+                        'movie', args.plex_title, title.name)
                     if title.synopsis:
                         movie.edit(**{
                             "summary.value": title.synopsis,
@@ -198,10 +212,6 @@ def main() -> None:
                     if args.replace_poster and check_url_exist(title.poster, service.session):
                         movie.uploadPoster(url=title.poste)
 
-
-
-
-
     # url = args.url
     # title = args.title
     # input_summary = args.input_summary
@@ -213,15 +223,14 @@ def main() -> None:
     # if title:
     #     title = title.strip()
 
+
     # if args.season_index:
     #     season_index = int(args.season_index)
     # else:
     #     season_index = 1
-
     # plex = ''
     # if not print_only:
     #     plex = connect_plex()
-
     # if 'netflix' in url:
     #     netflix = Netflix(args)
     #     netflix.main()
@@ -287,6 +296,5 @@ def main() -> None:
     #                            args.replace, input_summary)
     # else:
     #     print("目前只支持從Netflix、Disney、HBOGO、Apple TV、iTunes、Friday等取得電影、影集資訊")
-
 if __name__ == "__main__":
     main()
