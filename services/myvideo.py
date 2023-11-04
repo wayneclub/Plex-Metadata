@@ -1,111 +1,127 @@
+from __future__ import annotations
+import os
 import re
-import logging
+from typing import Union
+from cn2an import cn2an
+from bs4 import BeautifulSoup
 import orjson
-from utils.helper import plex_find_lib, text_format
+from objects.titles import Title
 from services.baseservice import BaseService
 
 
 class MyVideo(BaseService):
+    """
+    Service code for the MyVideo streaming service (https://www.myvideo.net.tw/).
+
+    \b
+    Authorization: None
+    """
+
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
 
-    def get_show_metadata(self, data, episode_list):
+    def get_titles(self) -> Union[Title, list[Title]]:
+        titles = []
+        if '/details/0/' in self.url or 'seriesType=0' in self.url:
+            self.movie = True
 
-        title = data['name'].strip().replace('預告', '')
-
-        show_synopsis = text_format(
-            data['description'].replace(f'《{title}》', ''))
-        show_poster = data['image']
-
-        print(f"\n{title}\n{show_synopsis}\n{show_poster}")
-
-        if not self.season_index:
-            season_index = 1
-
-        if not self.print_only:
-            show = plex_find_lib(self.plex, 'show', self.plex_title, title)
-            if season_index == 1:
-
-                show.edit(**{
-                    "summary.value": show_synopsis,
-                    "summary.locked": 1,
-                })
-
-                show.season(season_index).edit(**{
-                    "title.value": f'第 {season_index} 季',
-                    "title.locked": 1,
-                    "summary.value": show_synopsis,
-                    "summary.locked": 1,
-                })
-
-                if self.replace_poster:
-                    show.uploadPoster(url=show_poster)
-                    show.season(season_index).uploadPoster(url=show_poster)
-
-        for episode_index, episode in enumerate(episode_list, start=1):
-
-            res = self.session.get(
-                f"https://www.myvideo.net.tw/details/0/{episode}")
-            if res.ok:
-                match = re.findall(r'(\{\"embedUrl\":.+\})', res.text)
-                episode_poster = re.findall(
-                    r'background-image: url\((.+)\);', res.text)[0]
-                if match:
-                    episode_data = orjson.loads(match[0])
-                    episode_synopsis = text_format(
-                        episode_data['description'].replace(f'《{title} 第{episode_index}集》', ''))
-
-                    print(
-                        f"\n第 {episode_index} 集\n{episode_synopsis}\n{episode_poster}")
-
-                    if not self.print_only:
-                        show.season(season_index).episode(episode_index).edit(**{
-                            "title.value": f'第 {episode_index} 集',
-                            "title.locked": 1,
-                            "summary.value": episode_synopsis,
-                            "summary.locked": 1,
-                        })
-                        if self.replace_poster:
-                            show.season(season_index).episode(
-                                episode_index).uploadPoster(url=episode_poster)
-
-    def get_movie_metadata(self, data, rating):
-        title = data['name'].strip().replace('預告', '').replace(' 搶先版', '')
-
-        movie_synopsis = text_format(data['description'])
-        movie_poster = data['image']
-
-        content_rating = f"tw/{rating}"
-
-        print(f"\n{title}\t{content_rating}\n{movie_synopsis}\n{movie_poster}")
-
-        if not self.print_only:
-            movie = plex_find_lib(self.plex, 'movie',
-                                  self.plex_title, title)
-            movie.edit(**{
-                "contentRating.value": content_rating,
-                "contentRating.locked": 1,
-                "summary.value": movie_synopsis,
-                "summary.locked": 1,
-            })
-            if self.replace_poster:
-                movie.uploadPoster(url=movie_poster)
-
-    def main(self):
-        res = self.session.get(self.url)
+        res = self.session.get(url=self.url, timeout=10)
         if res.ok:
-            match = re.findall(
-                r'(\{\"embedUrl\":.+\})', res.text)
-            if match:
-                data = orjson.loads(match[0])
+            soup = BeautifulSoup(res.text, 'html.parser')
+        else:
+            self.log.exit(res.text)
 
-                if '/details/0/' in self.url or 'seriesType=0' in self.url:
-                    rating = re.search(r'"rating": \'(.+)\'', res.text)
-                    if rating:
-                        content_rating = rating.group(1)
-                    self.get_movie_metadata(data, content_rating)
-                else:
-                    episode_list = re.findall(
-                        r"clickVideoHandler\('T','(\d+)'\);", res.text)
-                    self.get_show_metadata(data, episode_list)
+        data = dict()
+        release_year = ''
+        for meta in soup.find_all('li', class_='introList'):
+            if meta.text.isdigit() and len(meta.text) == 4:
+                release_year = meta.text
+                break
+
+        for meta in soup.find_all('script', type='application/ld+json'):
+            if 'VideoObject' not in meta.text:
+                data = orjson.loads(meta.text)
+                break
+
+        if not data:
+            self.log.exit(f" - Failed to get title: {self.url}")
+
+        title = data['name'].replace('預告', '').replace(' 搶先版', '').strip()
+        content_rating = re.search(r'"rating": \'(.+)\'', res.text)
+        if content_rating:
+            content_rating = content_rating.group(1)
+        synopsis = data['description'].replace(f'《{title}》', '')
+        poster = data['image']
+        if self.movie:
+            movie_id = os.path.basename(self.url)
+            titles.append(Title(
+                id_=movie_id,
+                type_=Title.Types.MOVIE,
+                name=title,
+                year=release_year,
+                synopsis=synopsis,
+                content_rating=content_rating,
+                poster=poster,
+                source=self.source,
+                service_data=movie_id
+            ))
+        else:
+            title, season_index = self.get_title_and_season_index(title)
+            season_list = []
+            for season in soup.find('ul', class_='seasonSelectorList').find_all('a'):
+                season_search = re.search(r'第(.+?)季', season.text)
+                if season_search and not '國語版' in season.text:
+                    season_list.append({
+                        'index': int(cn2an(season_search.group(1))),
+                        'url': f"https://www.myvideo.net.tw/{season['href']}",
+                    })
+            if not season_list:
+                season_list.append({
+                    'index': season_index,
+                    'url': self.url,
+                })
+
+            for season in season_list:
+                for episode in self.get_episodes(season_url=season['url']):
+                    titles.append(Title(
+                        id_=episode['id'],
+                        type_=Title.Types.TV,
+                        name=title,
+                        synopsis=synopsis,
+                        content_rating=content_rating,
+                        poster=poster,
+                        season=season['index'],
+                        episode=episode['index'],
+                        episode_name=episode['name'],
+                        episode_synopsis=episode['synopsis'],
+                        episode_poster=episode['poster'],
+                        source=self.source,
+                        service_data=episode['id']
+                    ))
+
+        return titles
+
+    def get_episodes(self, season_url: str) -> list:
+        """Get episodes"""
+        episodes = []
+        res = self.session.get(season_url, timeout=10)
+        if res.ok:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            for episode in soup.find_all('span', class_='episodeIntro'):
+                synopsis = episode.find('blockquote').text
+                poster = episode.find_previous_sibling(
+                    'span').find('img')['src']
+                episode = episode.find('a')
+                episode_search = re.search(r'第(\d+)集', episode.text)
+                if episode_search and not '預告' in episode.text:
+                    episodes.append({
+                        'index': int(episode_search.group(1)),
+                        'id': os.path.basename(episode['href']),
+                        'name': episode.text.split('【')[-1].replace('】', '').strip(),
+                        'synopsis': synopsis,
+                        'poster': poster
+                    })
+        else:
+            self.log.exit(" - Failed to get episodes")
+
+        return episodes

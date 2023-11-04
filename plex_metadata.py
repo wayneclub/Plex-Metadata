@@ -1,6 +1,5 @@
 """
 This module is to get Netflix, HBOGo, Friday, iTune, etc metadata and automatically apply to Plex.
-
 """
 from __future__ import annotations
 import argparse

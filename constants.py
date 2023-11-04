@@ -16,6 +16,7 @@ class Service:
     CATCHPLAY = 'CatchPlay'
     DISNEYPLUS = 'DisneyPlus'
     FRIDAYVIDEO = 'FridayVideo'
+    GOOGLEPLAY = 'GooglePlay'
     HAMIVIDEO = 'HamiVideo'
     HBOGOASIA = 'HBOGOAsia'
     IQIYI = 'iQIYI'

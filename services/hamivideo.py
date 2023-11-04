@@ -1,6 +1,5 @@
 from __future__ import annotations
 import re
-import logging
 from typing import Union
 import orjson
 from bs4 import BeautifulSoup
@@ -18,7 +17,6 @@ class HamiVideo(BaseService):
 
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
 
     def get_titles(self) -> Union[Title, list[Title]]:
         titles = []

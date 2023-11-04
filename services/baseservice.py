@@ -152,6 +152,53 @@ class BaseService(metaclass=ABCMeta):
 
         return title.strip(), season_index
 
+    def get_title_info(self, title: str, release_year: str = "", title_aliases: list = None,
+                       is_movie: bool = False, original_lang: str = None) -> dict:
+        """
+        Get title info from TMDB
+        """
+        title_info = {}
+        if not title_aliases:
+            title_aliases = []
+        title_aliases.append(OpenCC('t2s').convert(title))
+        if not is_movie:
+            release_year = ""
+        results = self.tmdb.get_title(
+            title=title, release_year=release_year, is_movie=is_movie)
+        if results.get('results'):
+            title_info = results.get('results')
+        else:
+            for alias in title_aliases:
+                results = self.tmdb.get_title(title=alias.strip(),
+                                              release_year=release_year, is_movie=is_movie)
+                if results.get('results'):
+                    title_info = results.get('results')
+                    break
+            if not title_info:
+                results = self.tmdb.get_title(title=title, is_movie=is_movie)
+                if results.get('results'):
+                    title_info = results.get('results')
+        if title_info:
+            if isinstance(title_info, list):
+                if original_lang:
+                    title_info = next((title for title in title_info if str(
+                        original_lang) in title['original_language']), title_info[0])
+                else:
+                    title_info = title_info[0]
+            if title_info.get('name'):
+                title_info['title'] = title_info['name']
+            if title_info.get('release_date'):
+                title_info['release_year'] = title_info['release_date'][:4]
+            if title_info.get('first_air_date'):
+                title_info['release_year'] = title_info['first_air_date'][:4]
+
+            if not is_movie:
+                series = self.tmdb.get_episodes(title_info['id'])
+                title_info['seasons'] = series['seasons']
+
+            self.log.debug('TMDB: %s', title_info)
+        return title_info
+
 
 class TLSAdapter(requests.adapters.HTTPAdapter):
     """

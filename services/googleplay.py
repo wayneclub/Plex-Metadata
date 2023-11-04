@@ -1,50 +1,86 @@
+from __future__ import annotations
+from datetime import datetime
+from typing import Union
+from urllib.parse import parse_qs, urlparse
 
-import logging
-import re
-import json
-from bs4 import BeautifulSoup
+import requests
+from objects.titles import Title
 from services.baseservice import BaseService
-from utils.helper import get_dynamic_html, plex_find_lib, save_html, text_format
 
 
 class GooglePlay(BaseService):
+    """
+    Service code for the Google Play streaming service (https://play.google.com/).
+
+    \b
+    Authorization: None
+    """
+
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
+        self.title = parse_qs(urlparse(self.url).query).get('id')[0]
 
-    def get_metadata(self, driver):
-        html_page = BeautifulSoup(driver.page_source, 'lxml')
+    def get_titles(self) -> Union[Title, list[Title]]:
+        if '/movies' in self.url:
+            self.movie = True
 
-        title = html_page.find('h1').getText(strip=True)
-        movie_synopsis = text_format(html_page.find(
-            'meta', {'property': 'og:description'})['content'])
+        res = requests.get(
+            url=self.config["endpoints"]["titles"],
+            params={
+                "id": f"yt:{'movie' if self.movie else 'show'}:{self.title}",
+                "if": "mibercg:ANN:HDP:PRIM",
+                'alt': 'json',
+                'devtype': '4',
+                'device': 'generic',
+                'make': 'Google',
+                'model': 'ChromeCDM-Mac-x86-64',
+                'product': 'generic',
+                'apptype': '2',
+                "cr": "TW",  # US
+                "lr": "zh-TW",  # en-US
+            },
+            headers=self.session.headers,
+            cookies=self.session.cookies.get_dict(),
+            timeout=10
+        )
+        if res.ok:
+            data = res.json()
+            if not 'resource' in data:
+                self.log.exit(f" - Failed to get titles {self.title}")
+            data = data["resource"]
+        else:
+            error = res.json()['error']
+            self.log.exit("%s (%s)", error['message'], error['status'])
 
-        movie_poster = html_page.find(
-            'meta', {'property': 'og:image'})['content'] + '=w2000'
-        match = re.findall(
-            r'https:\/\/play-lh\.googleusercontent\.com\/proxy\/[^\"=]+', driver.page_source)
+        if self.movie:
+            return [Title(
+                id_=self.title,
+                type_=Title.Types.MOVIE,
+                name=x['metadata']['title'].split('  ')[0],
+                year=datetime.utcfromtimestamp(
+                    int(x['metadata']['release_date_timestamp_sec'])).year,
+                synopsis=x['metadata']['description'],
+                poster=next(
+                    image['url'] for image in x['metadata']['images'] if image['type'] == 'TYPE_POSTER') + '=w2000',
+                source=self.source,
+                service_data=x
+            ) for x in data if x["resource_id"]["type"] == "MOVIE"]
 
-        movie_background = ''
-        if match:
-            movie_background = set(match).pop() + '=w3840'
+        title = [x["metadata"]["title"]
+                 for x in data if x["resource_id"]["type"] == "SHOW"][0]
+        seasons = {
+            # seasons without an mid are "Complete Series", just filter out
+            x["resource_id"]["id"]: x["metadata"]["sequence_number"]
+            for x in data if x["resource_id"]["type"] == "SEASON" and x["resource_id"].get("mid")
+        }
 
-        print(
-            f"\n{title}\n{movie_synopsis}\n{movie_poster}\n{movie_background}")
-
-        driver.quit()
-
-        if not self.print_only:
-            movie = plex_find_lib(self.plex, 'movie',
-                                  self.plex_title, title)
-            movie.edit(**{
-                "summary.value": movie_synopsis,
-                "summary.locked": 1,
-            })
-            if self.replace_poster:
-                movie.uploadPoster(url=movie_poster)
-                if movie_background:
-                    movie.uploadArt(url=movie_background)
-
-    def main(self):
-        driver = get_dynamic_html(self.url)
-        self.get_metadata(driver)
+        return [Title(
+            id_=self.title,
+            type_=Title.Types.TV,
+            name=title,
+            season=seasons[t["parent"]["id"]],
+            episode=t["metadata"]["sequence_number"],
+            episode_name=t["metadata"].get("title"),
+            source=self.source,
+            service_data=t
+        ) for t in data if t["resource_id"]["type"] == "EPISODE" and t["parent"]["id"] in seasons]

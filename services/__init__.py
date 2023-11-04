@@ -10,6 +10,7 @@ from services.amazon import Amazon
 from services.appletvplus import AppleTVPlus
 from services.disneyplus import DisneyPlus
 from services.fridayvideo import FridayVideo
+from services.googleplay import GooglePlay
 from services.hamivideo import HamiVideo
 from services.hbogoasia import HBOGOAsia
 from services.iqiyi import IQIYI
@@ -36,6 +37,11 @@ service_map = [
         'name': Service.FRIDAYVIDEO,
         'class': FridayVideo,
         'domain': 'video.friday.tw'
+    },
+    {
+        'name': Service.GOOGLEPLAY,
+        'class': GooglePlay,
+        'domain': 'play.google.com'
     },
     {
         'name': Service.HAMIVIDEO,

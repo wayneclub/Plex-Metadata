@@ -2,7 +2,6 @@ from __future__ import annotations
 from datetime import datetime
 from math import ceil
 import os
-import logging
 from typing import Union
 from objects.titles import Title
 from services.baseservice import BaseService
@@ -10,7 +9,7 @@ from services.baseservice import BaseService
 
 class AppleTVPlus(BaseService):
     """
-    Service code for the Friday streaming service (https://tv.apple.com/).
+    Service code for the Apple TV+ streaming service (https://tv.apple.com/).
 
     \b
     Authorization: None
@@ -18,13 +17,7 @@ class AppleTVPlus(BaseService):
 
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
         self.title = os.path.basename(self.url.split('?')[0])
-
-        self.api = {
-            'movies': 'https://tv.apple.com/api/uts/v3/movies/{movie_id}?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=58&pfm=web&locale=zh-Hant&l=zh&ctx_brand=tvs.sbd.4000',
-            'series': 'https://tv.apple.com/api/uts/v3/shows/{show_id}/episodes?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=58&pfm=web&locale=zh-Hant&includeSeasonSummary=true&l=zh'
-        }
 
     def get_titles(self) -> Union[Title, list[Title]]:
         titles = []

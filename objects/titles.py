@@ -49,9 +49,9 @@ class Titles(list):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.title_name = None
-
         if self:
             self.title_name = self[0].name
+            self.year = str(self[0].year) if self[0].year > 0 else ''
             self.content_rating = self[0].content_rating
             self.synopsis = self[0].synopsis
             self.poster = self[0].poster
@@ -59,7 +59,7 @@ class Titles(list):
     def print(self) -> None:
         log = Logger.getLogger("Titles")
         log.info(
-            f"Title: {self.title_name}{' | ' + self.content_rating if self.content_rating else ''}")
+            f"Title: {self.title_name}{' (' + self.year + ')' if self.year else ''}{' | ' + self.content_rating if self.content_rating else ''}")
         if self.synopsis:
             log.info(self.synopsis)
         if self.poster:

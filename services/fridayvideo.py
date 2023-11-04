@@ -9,7 +9,7 @@ from services.baseservice import BaseService
 
 class FridayVideo(BaseService):
     """
-    Service code for the Friday streaming service (https://video.friday.tw/).
+    Service code for the Friday Video streaming service (https://video.friday.tw/).
 
     \b
     Authorization: None
@@ -18,7 +18,7 @@ class FridayVideo(BaseService):
     def __init__(self, args):
         super().__init__(args)
 
-        self.monitor_url: str
+        self.monitor_url: str = ''
         cookies = self.session.cookies.get_dict()
         cookies['JSESSIONID'] = ''
         cookies['login_accessToken'] = ''
@@ -87,7 +87,6 @@ class FridayVideo(BaseService):
             self.log.exit(res.text)
 
         title = data['chineseName'].strip()
-        original_title = data['englishName'].replace('，', ',')
         release_year = data['year']
         synopsis = data['introduction']
         content_rating = self.get_content_rating(str(data['rating']))
