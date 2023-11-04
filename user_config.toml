@@ -1,7 +1,22 @@
-# This is an example Subtitle-Downloader's config file.
+# This is an example Plex-MetaData's config file.
 
-# Default cookies dir: Subtitle-Downloader/cookies
-#         downloads dir: Subtitle-Downloader/downloads
+[metadata]
+default-language = 'zh-Hant' # en/zh-Hant
+
+[metadata.AppleTVPlus]
+locale = 'zh-TW' # en-US, zh-TW
+
+[metadata.DisneyPlus]
+region = 'TW' # US, TW, HK
+
+[metadata.GooglePlay]
+region = 'TW' # US, TW, HK
+
+[metadata.Netflix]
+region = 'TW' # US, TW, HK
+
+# Default cookies dir: Plex-MetaData/cookies
+#         downloads dir: Plex-MetaData/downloads
 [directories]
 cookies = ''
 downloads = ''
@@ -12,7 +27,6 @@ User-Agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
 
 [cookies]
 Netflix = 'netflix.com_cookies.txt'
-
 
 # Plex server settings
 [plex]
