@@ -1,0 +1,3 @@
+[endpoints]
+play= 'https://hamivideo.hinet.net/api/play.do?id={content_id}&freeProduct={free}'
+

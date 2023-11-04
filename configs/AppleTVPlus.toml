@@ -1,0 +1,21 @@
+user_agent = 'AppleTV6,2/11.1' # AppleTV6,2/11.1 | ATVE/1.1 FireOS/6.2.6.8 build/4A93 maker/Amazon model/FireTVStick4K FW/NS6268/2315
+
+[endpoints]
+title = 'https://tv.apple.com/api/uts/v3/{content_type}/{id}'
+shows = 'https://tv.apple.com/api/uts/v3/shows/{id}/episodes'
+episode = 'https://tv.apple.com/api/uts/v3/episodes/{id}'
+license = 'https://play.itunes.apple.com/WebObjects/MZPlay.woa/wa/fpsRequest'
+configurations = 'https://tv.apple.com/api/uts/v3/configurations'
+
+[device]
+# I have no idea what these values are or what they represent.
+# These might not even be device related.
+utscf = 'OjAAAAAAAAA~'
+# utsl = '6e3013c6d6fae3c2::::::2da9aeca64e10b2a'
+utsk = '6e3013c6d6fae3c2::::::8cae3c2db88ef820' # 6e3013c6d6fae3c2::::::e08f7cfb96228836 (?),  6e3013c6d6fae3c2::::::235656c069bb0efb (web)
+#utsk = '6e3013c6d6fae3c2::::::a11c63efba7e3b23' # Frome  Chrome
+caller = 'web'   # ?, vz, web,original:appletv
+sf = '143470'    # "storefront", country | 143441: US, 143444: GB, 143470:TW
+v = '70'         # "version" | latest: 70
+pfm = 'web'      # "platform" | appletv, vz, web
+locale = 'zh-tw' # "locale" | en-US, zh-TW

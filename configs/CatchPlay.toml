@@ -1,0 +1,12 @@
+[endpoints]
+manifest = 'https://vcmsapi.catchplay.com/video/v3/mediaInfo/{video_id}'
+oauth = 'https://www.catchplay.com/ssr-oauth/getOauth'
+play = 'https://hp2-api.catchplay.com/me/play'
+
+[device]
+asiaplay-app-version = '3.0'
+asiaplay-device-model = 'DT1901A' # mac os
+asiaplay-device-type = 'android'  # web
+asiaplay-os-type = 'app'          # chrome
+asiaplay-os-version = '25'        # 97.0.4692
+asiaplay-platform = 'bigscreen'   # desktop

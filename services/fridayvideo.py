@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import re
 from time import time
@@ -13,7 +12,7 @@ class FridayVideo(BaseService):
     Service code for the Friday streaming service (https://video.friday.tw/).
 
     \b
-    Authorization: Cookies
+    Authorization: None
     """
 
     def __init__(self, args):

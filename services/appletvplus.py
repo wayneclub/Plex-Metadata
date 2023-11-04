@@ -1,148 +1,128 @@
+from __future__ import annotations
+from datetime import datetime
+from math import ceil
 import os
-import re
 import logging
-import orjson
-from utils.helper import plex_find_lib, text_format
+from typing import Union
+from objects.titles import Title
 from services.baseservice import BaseService
 
 
 class AppleTVPlus(BaseService):
+    """
+    Service code for the Friday streaming service (https://tv.apple.com/).
+
+    \b
+    Authorization: None
+    """
+
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
+        self.title = os.path.basename(self.url.split('?')[0])
 
         self.api = {
             'movies': 'https://tv.apple.com/api/uts/v3/movies/{movie_id}?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=58&pfm=web&locale=zh-Hant&l=zh&ctx_brand=tvs.sbd.4000',
             'series': 'https://tv.apple.com/api/uts/v3/shows/{show_id}/episodes?utscf=OjAAAAAAAAA~&utsk=6e3013c6d6fae3c2%3A%3A%3A%3A%3A%3A235656c069bb0efb&caller=web&sf=143470&v=58&pfm=web&locale=zh-Hant&includeSeasonSummary=true&l=zh'
         }
 
-    def get_movie_metadata(self, data):
+    def get_titles(self) -> Union[Title, list[Title]]:
+        titles = []
+        if '/movie' in self.url:
+            self.movie = True
 
-        title = data['title']
-
-        content_rating = ''
-        if data['rating']['displayName'] != '未經分級':
-            content_rating = f"tw/{data['rating']['displayName']}"
-        movie_synopsis = text_format(data['description'])
-
-        movie_poster = ''
-        if 'coverArt' in data['images']:
-            movie_poster = data['images']['coverArt']['url'].format(
-                w=data['images']['coverArt']['width'], h=data['images']['coverArt']['height'], f='webp')
-
-        movie_background = ''
-        if 'centeredFullScreenBackgroundImage' in data['images']:
-            movie_background = data['images']['centeredFullScreenBackgroundImage']['url'].format(
-                w=4320, h=2160, c='sr', f='webp')
-        elif 'previewFrame' in data['images']:
-            movie_background = data['images']['previewFrame']['url'].format(
-                w=data['images']['previewFrame']['width'], h=data['images']['previewFrame']['height'], c='sr', f='webp')
-
-        print(
-            f"\n{title}\t{content_rating}\n{movie_synopsis}\n{movie_poster}\n{movie_background}")
-
-        if not self.print_only:
-            movie = plex_find_lib(self.plex, 'movie',
-                                  self.plex_title, title)
-
-            if content_rating:
-                movie.edit(**{
-                    "contentRating.value": content_rating,
-                    "contentRating.locked": 1,
-                    "summary.value": movie_synopsis,
-                    "summary.locked": 1,
-                })
-            else:
-                movie.edit(**{
-                    "summary.value": movie_synopsis,
-                    "summary.locked": 1,
-                })
-            if self.replace_poster:
-                movie.uploadPoster(url=movie_poster)
-                movie.uploadArt(url=movie_background)
-
-    def get_show_metadata(self, data):
-        title = data['title']
-        show_synopsis = text_format(data['description'])
-        show_poster = data['images']['coverArt']['url'].format(
-            w=data['images']['coverArt']['width'], h=data['images']['coverArt']['height'], f='webp')
-        if 'centeredFullScreenBackgroundImage' in data['images']:
-            show_background = data['images']['centeredFullScreenBackgroundImage']['url'].format(
-                w=4320, h=2160, c='sr', f='webp')
+        res = self.session.get(
+            url=self.config['endpoints']['title'].format(
+                content_type='movies' if self.movie else "shows", id=self.title),
+            params=self.config["device"],
+            timeout=10
+        )
+        if res.ok:
+            data = res.json()['data']
+            if not data.get('playables'):
+                self.log.exit(
+                    f" - Title ID '{self.title}' could not be found.")
         else:
-            show_background = data['images']['previewFrame']['url'].format(
-                w=data['images']['previewFrame']['width'], h=data['images']['previewFrame']['height'], c='sr', f='webp')
+            self.log.exit(f"Failed to load title manifest: {res.text}")
 
-        print(
-            f"\n{title}\n{show_synopsis}\n{show_poster}\n{show_background}")
-
-        if not self.print_only:
-            show = plex_find_lib(self.plex, 'show',
-                                 self.plex_title, title)
-            show.edit(**{
-                "summary.value": show_synopsis,
-                "summary.locked": 1,
-            })
-            if self.replace_poster:
-                show.uploadPoster(url=show_poster)
-                show.uploadArt(url=show_background)
-
-        res = self.session.get(self.api['episodes'].format(
-            show_id=os.path.basename(self.url)))
-        if res.ok:
-            for episode in res.json()['data']['episodes']:
-                season_index = episode['seasonNumber']
-                episode_index = episode['episodeNumber']
-                episode_title = episode['title']
-                episode_synopsis = text_format(episode['description'])
-                episode_poster = episode['images']['previewFrame']['url'].format(
-                    w=episode['images']['previewFrame']['width'], h=episode['images']['previewFrame']['height'], f='webp')
-
-                print(
-                    f"\n第 {season_index} 季 第 {episode_index} 集：{episode_title}\n{episode_synopsis}\n{episode_poster}")
-
-                if not self.print_only:
-                    if episode_index == 1:
-                        if season_index == 1:
-                            show.season(season_index).edit(**{
-                                "title.value": f'第 {season_index} 季',
-                                "title.locked": 1,
-                                "summary.value": show_synopsis,
-                                "summary.locked": 1,
-                            })
-                            if self.replace_poster:
-                                show.season(season_index).episode(
-                                    episode_index).uploadPoster(url=show_poster)
-                        else:
-                            show.season(season_index).edit(**{
-                                "title.value": f'第 {season_index} 季',
-                                "title.locked": 1,
-                            })
-                    show.season(season_index).episode(episode_index).edit(**{
-                        "title.value": episode_title,
-                        "title.locked": 1,
-                        "summary.value": episode_synopsis,
-                        "summary.locked": 1,
-                    })
-                    if self.replace_poster:
-                        show.season(season_index).episode(
-                            episode_index).uploadPoster(url=episode_poster)
-
-    def main(self):
-
-        res = self.session.get(self.url)
-        if res.ok:
-            match = re.search(
-                r'<script type=\"fastboot\/shoebox\" id=\"shoebox-uts-api\">(.+?)<\/script>', res.text)
-            data = orjson.loads(match.group(1).strip())
-
-            id = next(key for key in list(data.keys())
-                      if re.sub(r'(.+)\?.+', '\\1.caller.web', os.path.basename(self.url)) in key and 'personalized' not in key)
-            print(orjson.loads(data[id])['d']['data'])
-
-            data = orjson.loads(data[id])['d']['data']['content']
-            self.logger.debug(data)
-            if '/movies/' in self.url:
-                self.get_movie_metadata(data)
+        title = data['content']['title']
+        release_year = datetime.utcfromtimestamp(
+            data['content']['releaseDate'] / 1000).year
+        synopsis = data['content']['description']
+        content_rating = data['content']['rating']['displayName']
+        poster = data['content']['images']['posterArt']['url'].format(
+            w=data['content']['images']['posterArt']['width'], h=data['content']['images']['posterArt']['height'], f='webp')
+        if self.movie:
+            playable_id = data['smartPlayables'][-1]['playableId']
+            titles.append(Title(
+                id_=self.title,
+                type_=Title.Types.MOVIE,
+                name=title,
+                year=release_year,
+                synopsis=synopsis,
+                content_rating=content_rating,
+                # poster=poster,
+                source=self.source,
+                service_data=data['playables'][playable_id]
+            ))
+        else:
+            params = self.config['device'] | {
+                'selectedSeasonEpisodesOnly': False}
+            res = self.session.get(
+                url=self.config['endpoints']['shows'].format(id=self.title),
+                params=params,
+                timeout=10
+            )
+            if res.ok:
+                data = res.json()['data']
             else:
-                self.get_show_metadata(data)
+                self.log.exit(f"Failed to load episodes: {res.text}")
+
+            episodes = filter(
+                lambda episode: not episode.get('comingSoon'), self.get_episodes(total=data['totalEpisodeCount']))
+
+            for episode in episodes:
+                episode_data = self.get_episode(episode_id=episode['id'])
+                playable_id = episode_data['smartPlayables'][-1]['playableId']
+                titles.append(Title(
+                    id_=self.title,
+                    type_=Title.Types.TV,
+                    name=episode["showTitle"],
+                    synopsis=synopsis,
+                    content_rating=content_rating,
+                    # poster=poster,
+                    season=episode["seasonNumber"],
+                    episode=episode["episodeNumber"],
+                    episode_name=episode.get("title"),
+                    episode_synopsis=episode['description'],
+                    episode_poster=episode['images']['posterArt']['url'].format(
+                        w=episode['images']['posterArt']['width'], h=episode['images']['posterArt']['height'], f='webp'),
+                    source=self.source,
+                    service_data=episode_data['playables'][playable_id]
+                ))
+        return titles
+
+    def get_episodes(self, total: int) -> list:
+        """Get episodes"""
+        pages = ceil(total / 10)
+        next_tokens = [f'{(n)*10}:10' for n in range(pages)]
+
+        episodes = []
+        for next_token in next_tokens:
+            params = self.config['device'] | {'nextToken': next_token}
+
+            res = self.session.get(self.config['endpoints']['shows'].format(
+                id=self.title), params=params, timeout=10)
+            if res.ok:
+                episodes += res.json()['data']['episodes']
+            else:
+                self.log.exit(res.text)
+        return episodes
+
+    def get_episode(self, episode_id: str) -> dict:
+        """Get episode detail"""
+        res = self.session.get(self.config['endpoints']['episode'].format(
+            id=episode_id), params=self.config['device'], timeout=10)
+        if res.ok:
+            return res.json()['data']
+        self.log.exit(res.text)

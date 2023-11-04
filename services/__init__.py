@@ -20,7 +20,7 @@ service_map = [
     {
         'name': Service.Amazon,
         'class': Amazon,
-        'domain': 'tv.apple.com',
+        'domain': 'amazon.com',
     },
     {
         'name': Service.APPLETVPLUS,
@@ -36,6 +36,11 @@ service_map = [
         'name': Service.FRIDAYVIDEO,
         'class': FridayVideo,
         'domain': 'video.friday.tw'
+    },
+    {
+        'name': Service.HAMIVIDEO,
+        'class': HamiVideo,
+        'domain': 'hamivideo.hinet.net'
     },
     {
         'name': Service.HBOGOASIA,

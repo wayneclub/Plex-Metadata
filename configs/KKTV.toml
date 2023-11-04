@@ -1,0 +1,4 @@
+[endpoints]
+titles = 'https://api.kktv.me/v3/titles/{title_id}'
+playback_tokens = 'https://api.kktv.me/v3/playback_tokens'
+license = 'https://license.kktv.com.tw/'

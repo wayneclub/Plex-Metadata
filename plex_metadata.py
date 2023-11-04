@@ -193,9 +193,6 @@ def main() -> None:
                                 title.episode).uploadPoster(filepath=title.episode_poster)
                             os.remove(title.episode_poster)
             else:
-                log.info(
-                    f"{title.name} ({title.year or '???'}){' | ' + title.content_rating if title.content_rating else ''}")
-                log.info(title.synopsis)
                 if plex:
                     movie = plex.plex_find_lib(
                         'movie', args.plex_title, title.name)
@@ -210,7 +207,7 @@ def main() -> None:
                             "contentRating.locked": 1,
                         })
                     if args.replace_poster and check_url_exist(title.poster, service.session):
-                        movie.uploadPoster(url=title.poste)
+                        movie.uploadPoster(url=title.poster)
 
     # url = args.url
     # title = args.title

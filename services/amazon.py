@@ -1,7 +1,9 @@
 import logging
 import re
+from typing import Union
 import orjson
 from urllib.parse import urlsplit
+from objects.titles import Title
 from utils.helper import plex_find_lib, text_format
 from services.baseservice import BaseService
 
@@ -14,6 +16,24 @@ class Amazon(BaseService):
         self.api = {
             'season': 'https://www.amazon.com/-/zh_TW/gp/video/detail/{season_key}/ref=atv_dp_season_select_s{season_index}?language=zh_TW'
         }
+
+    def get_titles(self) -> Union[Title, list[Title]]:
+        if 'atv_nb_lcl_zh_TW' not in self.url:
+            self.url = re.sub(r'(.+ref=)(.+)',
+                              '\\1atv_nb_lcl_zh_TW?language=zh_TW', self.url)
+        res = self.session.get(self.url)
+        if res.ok:
+            match = re.findall(
+                r'<script type=\"text/template\">(\{\"props\":\{\"state\".+)</script>', res.text)
+            if match:
+                data = orjson.loads(match[0])
+            else:
+                self.log.exit(
+                    f" - Failed to get title: {self.url}")
+        else:
+            self.log.exit(1)
+
+        print(data)
 
     def get_metadata(self, data):
         title_id = data['pageTitleId']
