@@ -7,6 +7,13 @@ from services.baseservice import BaseService
 
 
 class DisneyPlus(BaseService):
+    """
+    Service code for Disney's Disney+ streaming service (https://disneyplus.com).
+
+    \b
+    Authorization: None
+    """
+
     def __init__(self, args):
         super().__init__(args)
         self.title = os.path.basename(self.url)
