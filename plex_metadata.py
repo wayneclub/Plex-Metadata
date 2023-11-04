@@ -8,12 +8,13 @@ from datetime import datetime
 import os
 from pathlib import Path
 import re
+import shutil
 from objects.titles import Title, Titles
 from services import service_map
 from services.baseservice import BaseService
 from utils.collections import as_list
 from utils.helper import autocrop, check_url_exist
-from utils.io import load_toml
+from utils.io import download_images, load_toml
 from utils.plex import Plex
 from configs.config import app_name, __version__, directories, filenames
 
@@ -25,19 +26,17 @@ def main() -> None:
     parser.add_argument(
         'url', help='Netflix、Disney、HBOGO、Apple TV、iTunes、Friday等介紹網址')
 
-    parser.add_argument('-t', '--title', dest='plex_title', help='plex 標題')
+    parser.add_argument('-t', '--title', dest='plex_title',
+                        help='Plex media title')
 
     parser.add_argument('-i', '--input_summary',
                         dest='input_summary', help='劇情檔案')
 
     parser.add_argument('-r', '--replace', dest='replace',
-                        nargs='?', const=True, help='取代標題')
+                        nargs='?', const=True, help='Replace metadata')
 
     parser.add_argument('-rp', '--replace_poster', dest='replace_poster',
-                        nargs='?', const=True, help='取代標題')
-
-    parser.add_argument('-print', '--print_only', dest='print_only',
-                        nargs='?', const=True, help='只印出不要更新')
+                        nargs='?', const=True, help='Replace poster')
 
     parser.add_argument('-s',
                         '--season',
@@ -48,10 +47,8 @@ def main() -> None:
                         dest='episode',
                         help="download episode [0-9]")
 
-    parser.add_argument('-region', '--region', dest='region', help='詮釋資料地區')
-
-    parser.add_argument('-download', '--download_poster', dest='download_poster',
-                        nargs='?', const=True, help='下載海報')
+    parser.add_argument('-dl', '--download_poster', dest='download_poster',
+                        nargs='?', const=True, help='Download poster')
 
     parser.add_argument('-p',
                         '--proxy',
@@ -69,8 +66,7 @@ def main() -> None:
         '-v',
         '--version',
         action='version',
-        version='{app_name} {version}'.format(
-            app_name=app_name, version=__version__)
+        version=f'{app_name} {__version__}'
     )
 
     args = parser.parse_args()
@@ -121,16 +117,30 @@ def main() -> None:
         if args.replace or args.replace_poster:
             plex = Plex()
 
+        posters = set()
         for title in titles.with_wanted(service.download_season, service.download_episode):
+            if isinstance(title.extra, set):
+                posters |= title.extra
+
             if title.type == Title.Types.TV:
+                if title.season_synopsis and title.episode == 1:
+                    log.info(f"Season {title.season}: {title.season_synopsis}")
+
                 log.info(
                     f"{title.name} S{(title.season or 0):02}E{(title.episode or 0):02}{' - ' + title.episode_name if title.episode_name else ''}")
+
+                if title.poster:
+                    posters.add(title.poster)
+
+                if title.background:
+                    posters.add(title.background)
 
                 if title.episode_synopsis:
                     log.info(title.episode_synopsis)
 
                 if title.episode_poster:
                     log.info(title.episode_poster)
+                    posters.add(title.episode_poster)
 
                 if plex:
                     show = plex.plex_find_lib(
@@ -192,6 +202,12 @@ def main() -> None:
                                 title.episode).uploadPoster(filepath=title.episode_poster)
                             os.remove(title.episode_poster)
             else:
+                if title.poster:
+                    posters.add(title.poster)
+
+                if title.background:
+                    posters.add(title.background)
+
                 if plex:
                     movie = plex.plex_find_lib(
                         'movie', args.plex_title, title.name)
@@ -207,6 +223,19 @@ def main() -> None:
                         })
                     if args.replace_poster and check_url_exist(title.poster, service.session):
                         movie.uploadPoster(url=title.poster)
+
+        if args.download_poster:
+            log.info(" + Downloading Posters")
+            thumbnails_dir = directories.images / \
+                title.normalize_filename(title.name).rstrip().rstrip(".")
+            os.makedirs(thumbnails_dir, exist_ok=True)
+            download_images(posters, thumbnails_dir, service.session)
+
+            log.info(" + Packaging of posters to take away")
+            zipname = os.path.normpath(os.path.basename(thumbnails_dir))
+            shutil.make_archive(zipname,
+                                'zip', os.path.normpath(thumbnails_dir))
+            log.info(f" + {zipname}.zip")
 
     # url = args.url
     # title = args.title

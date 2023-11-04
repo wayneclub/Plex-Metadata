@@ -20,6 +20,7 @@ class Config:
 
     def __init__(self, **kwargs: Any):
         self.tmdb: dict = kwargs.get("tmdb") or {}
+        self.metadata: dict = kwargs.get("metadata") or {}
         self.plex: dict = kwargs.get("plex") or {}
         self.cookies: dict = kwargs.get("cookies") or {}
         self.directories: dict = kwargs.get("directories") or {}

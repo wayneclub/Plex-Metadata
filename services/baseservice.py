@@ -9,14 +9,16 @@ import logging
 import re
 from abc import ABCMeta, abstractmethod
 from typing import Union
+from opencc import OpenCC
 import requests
 import ssl
-from configs.config import user_agent
+from configs.config import config, user_agent
 from objects.titles import Title
 from utils import Logger
 from cn2an import cn2an
 from utils.helper import EpisodesNumbersHandler, connect_plex
 from utils.proxy import get_proxy
+from utils.tmdb import tmdb
 
 
 class BaseService(metaclass=ABCMeta):
@@ -37,10 +39,13 @@ class BaseService(metaclass=ABCMeta):
             level=logging.DEBUG if args.debug else logging.INFO
         )
 
+        self.default_language = config.metadata['default-language']
+        self.metadata = config.metadata[self.source]
+
         self.config = args.config
 
         self.replace_poster = args.replace_poster
-        self.print_only = args.print_only
+        # self.print_only = args.print_only
 
         if args.season:
             self.download_season = EpisodesNumbersHandler(
@@ -63,6 +68,8 @@ class BaseService(metaclass=ABCMeta):
         proxy = args.proxy or next(iter(self.GEOFENCE), None)
         if proxy:
             self.set_proxy(proxy)
+
+        self.tmdb = tmdb()
 
     @abstractmethod
     def get_titles(self) -> Union[Title, list[Title]]:

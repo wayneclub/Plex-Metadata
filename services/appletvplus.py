@@ -36,7 +36,7 @@ class AppleTVPlus(BaseService):
                 self.log.exit(
                     f" - Title ID '{self.title}' could not be found.")
         else:
-            self.log.exit(f"Failed to load title manifest: {res.text}")
+            self.log.exit(f"Failed to load title: {res.text}")
 
         title = data['content']['title']
         release_year = datetime.utcfromtimestamp(

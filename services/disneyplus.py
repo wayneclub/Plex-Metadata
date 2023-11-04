@@ -1,260 +1,138 @@
+from __future__ import annotations
 import os
-import math
-import re
-import logging
-from utils.helper import compress_image, plex_find_lib, text_format, download_images
+from math import ceil
+from typing import Union
+from objects import Title
 from services.baseservice import BaseService
 
 
 class DisneyPlus(BaseService):
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
+        self.title = os.path.basename(self.url)
 
-        self.output = args.output
-        if not self.output:
-            self.output = os.getcwd()
+    def get_titles(self) -> Union[Title, list[Title]]:
+        if '/movies' in self.url:
+            self.movie = True
 
-        self.download_poster = args.download_poster
+        title_type = "Video" if self.movie else "Series"
+        res = self.session.get(self.config['endpoints']['titles'].format(
+            content_type=f'Dmc{title_type}Bundle',
+            region=self.metadata['region'] or self.config['region'],
+            language=self.default_language or self.config['language'],
+            encoded_type='encodedFamilyId' if self.movie else 'encodedSeriesId',
+            content_id=self.title
+        ), timeout=10)
+        if res.ok:
+            data = res.json()['data'][f"Dmc{title_type}Bundle"]
+        else:
+            self.log.exit(f"Failed to load title: {res.text}")
 
-    def get_metadata(self):
+        if data[title_type.lower()] is None:
+            self.log.exit(
+                "Disney+ returned no information on this title.\n"
+                "It might not be available in the account's region."
+            )
 
-        posters = set()
-        if '/series' in self.url:
-            if self.region and 'HK' in self.region:
-                series_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/{self.region}/audience/false/maturity/1850/language/zh-HK/encodedSeriesId/{os.path.basename(self.url)}'
-            else:
-                series_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcSeriesBundle/version/5.1/region/{self.region}/audience/false/maturity/1850/language/zh-Hant/encodedSeriesId/{os.path.basename(self.url)}'
+        if self.movie:
+            title = data['video']['text']['title']['full']['program']['default']['content']
+            release_year = data['video']['releases'][0]['releaseYear']
+            synopsis = data['video']['text']['description']['medium']['program']['default']['content']
+            poster = data['video']['image']['tile']['0.71']['program']['default']['url']
+            if 'background_details' in data['video']['image']:
+                background = data['video']['image']['background_details']['1.78']['program']['default']['url']
+            elif 'background' in data['video']['image']:
+                background = data['video']['image']['background']['1.78']['program']['default']['url']
 
-            res = self.session.get(series_url)
-            if res.ok:
-                data = res.json()['data']['DmcSeriesBundle']
-                title = data['series']['text']['title']['full']['series']['default']['content'].strip(
-                )
-                show_synopsis = text_format(
-                    data['series']['text']['description']['medium']['series']['default']['content'])
+            extras = set()
+            extras.add(data['video']['image']['tile']
+                       ['1.78']['program']['default']['url'])
+            if 'background_up_next' in data['video']['image']:
+                extras.add(data['video']['image']['background_up_next']
+                           ['1.78']['program']['default']['url'])
+            if 'tile_inline' in data['video']['image']:
+                extras.add(data['video']['image']['tile_inline']
+                           ['0.71']['program']['default']['url'])
+            if 'thumbnail' in data['video']['image']:
+                extras.add(data['video']['image']['thumbnail']
+                           ['1.78']['program']['default']['url'])
 
-                if 'background_details' in data['series']['image']:
-                    show_background = data['series']['image']['background_details']['1.78']['series']['default']['url']
-                elif 'background' in data['series']['image']:
-                    show_background = data['series']['image']['background']['1.78']['series']['default']['url']
+            return Title(
+                id_=self.title,
+                type_=Title.Types.MOVIE,
+                name=title,
+                year=release_year,
+                synopsis=synopsis,
+                poster=poster,
+                background=background,
+                source=self.source,
+                service_data=data["video"],
+                extra=extras
+            )
+        else:
+            title = data['series']['text']['title']['full']['series']['default']['content']
+            release_year = data['series']['releases'][0]['releaseYear']
+            synopsis = data['series']['text']['description']['medium']['series']['default']['content']
+            if 'background_details' in data['series']['image']:
+                background = data['series']['image']['background_details']['1.78']['series']['default']['url']
+            elif 'background' in data['series']['image']:
+                background = data['series']['image']['background']['1.78']['series']['default']['url']
 
-                print(f"{title}\n{show_synopsis}\n{show_background}")
+            extras = set()
+            extras.add(data['series']['image']['tile']
+                       ['1.78']['series']['default']['url'])
+            if 'background_up_next' in data['series']['image']:
+                extras.add(data['series']['image']['background_up_next']
+                           ['1.78']['series']['default']['url'])
+            if 'tile_inline' in data['series']['image']:
+                extras.add(data['series']['image']['tile_inline']
+                           ['0.71']['series']['default']['url'])
+            if 'thumbnail' in data['series']['image']:
+                extras.add(data['series']['image']['thumbnail']
+                           ['1.78']['program']['default']['url'])
 
-                if not self.print_only:
-                    show = plex_find_lib(
-                        self.plex, 'show', self.plex_title, title)
-                    show.edit(**{
-                        "summary.value": show_synopsis,
-                        "summary.locked": 1
-                    })
-                    if self.replace_poster:
-                        show_background_file = compress_image(show_background)
-                        show.uploadArt(filepath=show_background_file)
-                        if os.path.exists(show_background_file):
-                            os.remove(show_background_file)
+        # get data for every episode in every season via looping due to the fact
+        # that the api doesn't provide ALL episodes in the initial bundle api call.
+        seasons: dict[str, list] = {s["seasonId"]: []
+                                    for s in data["seasons"]["seasons"]}
+        for season in data["seasons"]["seasons"]:
+            season_id = season["seasonId"]
+            page_size = ceil(season["episodes_meta"]["hits"] / 30)
+            for page_number in range(1, page_size+1):
+                seasons[season_id].extend(self.get_episodes(
+                    season_id=season_id, page_number=page_number))
 
-                backgrounds = set()
-                season_num = len(data['seasons']['seasons'])
-                for season in data['seasons']['seasons']:
-                    season_index = season['seasonSequenceNumber']
-                    episode_list = self.check_episodes(season, series_url)
-                    for episode_id in episode_list:
-                        episode_url = re.sub(r'(.+)DmcSeriesBundle(.+)encodedSeriesId.+',
-                                             '\\1DmcVideo\\2contentId/', series_url) + episode_id
-                        self.logger.debug(episode_url)
+        episodes = [x for y in seasons.values() for x in y]
 
-                        episode_res = self.session.get(episode_url)
-                        if episode_res.ok:
-                            episode_data = episode_res.json(
-                            )['data']['DmcVideo']['video']
-                            episode, background_list, poster_list = self.parse_json(
-                                episode_data)
+        return [Title(
+            id_=self.title,
+            type_=Title.Types.TV,
+            name=title,
+            synopsis=synopsis,
+            poster=episode['image']['tile']['0.71']['series']['default']['url'],
+            background=background,
+            season=episode['seasonSequenceNumber'],
+            season_synopsis=episode['text']['description']['medium']['season']['default']['content'] if episode['text']['description']['medium'].get(
+                'season') else '',
+            episode=episode['episodeSequenceNumber'],
+            episode_name=episode['text']['title']['full']['program']['default']['content'],
+            episode_synopsis=episode['text']['description']['full']['program']['default']['content'],
+            episode_poster=episode['image']['thumbnail']['1.78']['program']['default']['url'],
+            compress=True,
+            source=self.source,
+            service_data=episode,
+            extra=extras
+        ) for episode in episodes]
 
-                            episode_index = episode['index']
-                            backgrounds = set.union(
-                                backgrounds, background_list)
-                            posters = set.union(posters, poster_list)
-
-                            if season_index == 1 and episode_index == 1:
-                                print(episode['show_poster'])
-                                if not self.print_only and self.replace_poster:
-                                    show_poster_file = compress_image(
-                                        episode['show_poster'])
-                                    show.uploadPoster(
-                                        filepath=show_poster_file)
-                                    if season_num == 1:
-                                        show.season(season_index).uploadPoster(
-                                            filepath=show_poster_file)
-                                    if os.path.exists(show_poster_file):
-                                        os.remove(show_poster_file)
-
-                            if episode_index == 1:
-                                print(
-                                    f"\n第 {season_index} 季\n{episode['season_synopsis']}")
-                                if season_index and not self.print_only:
-                                    show.season(season_index).edit(**{
-                                        "title.value": f'第 {season_index} 季',
-                                        "title.locked": 1,
-                                        "summary.value": episode['season_synopsis'],
-                                        "summary.locked": 1,
-                                    })
-
-                            if re.search(r'^第.+集$', episode['title']):
-                                episode['title'] = f'第 {episode_index} 集'
-
-                            if not re.search(r'^第.+集$', episode['title']):
-                                print(
-                                    f"\n第 {episode_index} 集：{episode['title']}\n{episode['synopsis']}\n{episode['poster']}")
-                            else:
-                                print(
-                                    f"\n{episode['title']}\n{episode['synopsis']}\n{episode['poster']}")
-
-                            if not self.print_only and episode_index:
-                                show.season(season_index).episode(episode_index).edit(**{
-                                    "title.value": episode['title'],
-                                    "title.locked": 1,
-                                    "summary.value": episode['synopsis'],
-                                    "summary.locked": 1,
-                                })
-
-                                if self.replace_poster:
-
-                                    episode_poster_file = compress_image(
-                                        episode['poster'])
-                                    show.season(season_index).episode(
-                                        episode_index).uploadPoster(filepath=episode_poster_file)
-                                    if os.path.exists(episode_poster_file):
-                                        os.remove(episode_poster_file)
-
-                print()
-                backgrounds.remove(show_background)
-                for season_index, poster in enumerate(list(backgrounds)[1:], start=1):
-                    print(poster)
-                    if self.replace_poster and season_index <= season_num:
-                        season_background_file = compress_image(poster)
-                        show.season(season_index).uploadArt(
-                            filepath=season_background_file)
-                        if os.path.exists(season_background_file):
-                            os.remove(season_background_file)
-        elif '/movies' in self.url:
-            if self.region and 'HK' in self.region:
-                movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/{self.region}/audience/false/maturity/1850/language/zh-HK/encodedFamilyId/{os.path.basename(self.url)}'
-            else:
-                movie_url = f'https://disney.content.edge.bamgrid.com/svc/content/DmcVideoBundle/version/5.1/region/{self.region}/audience/false/maturity/1850/language/zh-Hant/encodedFamilyId/{os.path.basename(self.url)}'
-            self.logger.debug(movie_url)
-            res = self.session.get(movie_url)
-
-            if res.ok:
-                data = res.json()['data']['DmcVideoBundle']['video']
-                self.logger.debug(data)
-                movie_id = data['contentId']
-                title = data['text']['title']['full']['program']['default']['content'].strip(
-                ).strip()
-                movie_synopsis = text_format(
-                    data['text']['description']['medium']['program']['default']['content'])
-
-                if 'background_details' in data['image']:
-                    movie_background = data['image']['background_details']['1.78']['program']['default']['url']
-                elif 'background' in data['image']:
-                    movie_background = data['image']['background']['1.78']['program']['default']['url']
-
-                if 'tile' in data['image']:
-                    movie_poster = data['image']['tile']['0.71']['program']['default']['url']
-
-                print(
-                    f"{title}\n{movie_synopsis}\n{movie_background}\n{movie_poster}")
-                video_url = re.sub(r'(.+)DmcVideoBundle(.+)encodedFamilyId.+',
-                                   '\\1DmcVideo\\2contentId/', movie_url) + movie_id
-                video_res = self.session.get(video_url)
-                if video_res.ok:
-                    video_data = video_res.json(
-                    )['data']['DmcVideo']['video']['image']
-                    for image_key in video_data.keys():
-                        if not 'title' in image_key:
-                            print(image_key)
-                            if '1.78' in video_data[image_key]:
-                                posters.add(video_data[image_key]['1.78']
-                                            ['program']['default']['url'])
-                            if '0.71' in video_data[image_key]:
-                                posters.add(video_data[image_key]['0.71']
-                                            ['program']['default']['url'])
-
-                    if not self.print_only:
-                        movie = plex_find_lib(self.plex, 'movie',
-                                              self.plex_title, title)
-                        movie.edit(**{
-                            "summary.value": movie_synopsis,
-                            "summary.locked": 1
-                        })
-                        if self.replace_poster:
-                            movie_poster_file = compress_image(movie_poster)
-                            movie.uploadPoster(filepath=movie_poster_file)
-                            if os.path.exists(movie_poster_file):
-                                os.remove(movie_poster_file)
-
-                            movie_background_file = compress_image(
-                                movie_background)
-                            movie.uploadArt(filepath=movie_background_file)
-                            if os.path.exists(movie_background_file):
-                                os.remove(movie_background_file)
-
-        print()
-        print('\n'.join(posters))
-        if self.download_poster:
-            download_images(posters, os.path.join(self.output, title))
-
-    def check_episodes(self, season, series_url):
-        episode_num = season['episodes_meta']['hits']
-        episodes = season['downloadableEpisodes']
-        if len(episodes) != episode_num:
-            season_id = season['seasonId']
-            page_size = math.ceil(len(episodes) / 15)
-            episodes = []
-            for page in range(1, page_size+1):
-                episode_page_url = re.sub(r'(.+)DmcSeriesBundle(.+)encodedSeriesId.+',
-                                          '\\1DmcEpisodes\\2seasonId/', series_url) + f'{season_id}/pageSize/15/page/{page}'
-                episode_page_res = self.session.get(episode_page_url)
-                if episode_page_res.ok:
-                    episode_pages = episode_page_res.json(
-                    )['data']['DmcEpisodes']['videos']
-                    for episode in episode_pages:
-                        episodes.append(episode['contentId'])
-        return episodes
-
-    def parse_json(self, data):
-        self.logger.debug(data)
-        episode = dict()
-        episode['index'] = data['episodeSequenceNumber']
-        episode['title'] = data['text']['title']['full']['program']['default']['content']
-        episode['synopsis'] = text_format(
-            data['text']['description']['full']['program']['default']['content'])
-        episode['season_synopsis'] = text_format(
-            data['text']['description']['medium']['season']['default']['content'])
-
-        episode['show_poster'] = data['image']['tile']['0.71']['series']['default']['url']
-        episode['poster'] = data['image']['thumbnail']['1.78']['program']['default']['url']
-        images = set()
-        posters = set()
-        for image_key in data['image'].keys():
-            if not 'title' in image_key:
-                if not 'tile' in image_key and '1.78' in data['image'][image_key] and 'series' in data['image'][image_key]['1.78']:
-                    # print(image_key)
-                    images.add(data['image'][image_key]['1.78']
-                               ['series']['default']['url'])
-
-                if '1.78' in data['image'][image_key]:
-                    if 'series' in data['image'][image_key]['1.78']:
-                        posters.add(data['image'][image_key]['1.78']
-                                    ['series']['default']['url'])
-                    if 'program' in data['image'][image_key]['1.78']:
-                        posters.add(data['image'][image_key]['1.78']
-                                    ['program']['default']['url'])
-                if '0.71' in data['image'][image_key]:
-                    posters.add(data['image'][image_key]['0.71']
-                                ['series']['default']['url'])
-
-        return episode, images, posters
-
-    def main(self):
-        self.get_metadata()
+    def get_episodes(self, season_id: str, page_number: int) -> list:
+        """Get episodes"""
+        res = self.session.get(self.config['endpoints']['episodes'].format(
+            region=self.metadata['region'] or self.config['region'],
+            language=self.default_language or self.config['language'],
+            season_id=season_id,
+            page_number=page_number
+        ), timeout=10)
+        if res.ok:
+            return res.json()['data']['DmcEpisodes']['videos']
+        else:
+            self.log.exit(" - Failed to get episodes")

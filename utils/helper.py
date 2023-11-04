@@ -34,6 +34,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from configs.config import config, directories
 from utils import Logger
 
+
 class EpisodesNumbersHandler(object):
     """
     Convert user-input episode range to list of int numbers
@@ -132,7 +133,8 @@ def get_dynamic_html(url, headless=True):
              'credentials_enable_service': False, 'profile.password_manager_enabled': False}
     options.add_experimental_option('prefs', prefs)
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    driver = webdriver.Chrome(service=ChromeService(
+        ChromeDriverManager().install()), options=options)
     driver.execute_cdp_cmd('Network.setUserAgentOverride', {
         "userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})
     driver.delete_all_cookies()
@@ -197,7 +199,8 @@ def connect_plex():
     if config.plex['baseurl'] and config.plex['token']:
         return PlexServer(config.plex['baseurl'], config.plex['token'])
     elif config.plex['username'] and config.plex['password'] and config.plex['servername']:
-        account = MyPlexAccount(config.plex['username'], config.plex['password'])
+        account = MyPlexAccount(
+            config.plex['username'], config.plex['password'])
         return account.resource(config.plex['servername']).connect()
 
 
@@ -291,8 +294,6 @@ def download_images(urls, folder_path):
     max_pool_size = 8
     pool = multiprocessing.Pool(
         cpus if cpus < max_pool_size else max_pool_size)
-    pool = multiprocessing.Pool(
-        cpus if cpus < max_pool_size else max_pool_size)
     for url in urls:
         pool.apply_async(download_file, args=(
             url, os.path.join(folder_path, f'{os.path.basename(url)}.png')))
@@ -367,6 +368,7 @@ def compress_image(url):
     image.save(image_path, 'webp', optimize=True, quality=100)
     return image_path
 
+
 def autocrop(url: str, session: Session) -> str:
     """Crops any edges below or equal to threshold
 
@@ -378,16 +380,18 @@ def autocrop(url: str, session: Session) -> str:
 
     # image = cv2.imread(url)
     # image = Image.open(BytesIO(session.get(url, timeout=10).content))
-    image = np.asarray(bytearray(session.get(url, timeout=10).content), dtype="uint8")
+    image = np.asarray(bytearray(session.get(
+        url, timeout=10).content), dtype="uint8")
     image = cv2.imdecode(image, cv2.IMREAD_COLOR)
 
-    gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    _,thresh = cv2.threshold(gray,1,255,cv2.THRESH_BINARY)
-    x,y,w,h = cv2.boundingRect(thresh)
-    image = image[y:y+h,x:x+w]
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+    x, y, w, h = cv2.boundingRect(thresh)
+    image = image[y:y+h, x:x+w]
 
     os.makedirs(directories.images, exist_ok=True)
-    image_path = Path(directories.images / os.path.basename(url)).with_suffix('.webp')
+    image_path = Path(directories.images /
+                      os.path.basename(url)).with_suffix('.webp')
     cv2.imwrite(str(image_path), image)
 
     return image_path

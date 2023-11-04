@@ -18,4 +18,4 @@ caller = 'web'   # ?, vz, web,original:appletv
 sf = '143470'    # "storefront", country | 143441: US, 143444: GB, 143470:TW
 v = '70'         # "version" | latest: 70
 pfm = 'web'      # "platform" | appletv, vz, web
-locale = 'zh-tw' # "locale" | en-US, zh-TW
+locale = 'en-US' # "locale" | en-US, zh-TW

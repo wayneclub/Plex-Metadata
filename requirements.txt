@@ -1,6 +1,7 @@
 beautifulsoup4
 cn2an
 selenium
+Unidecode
 opencc
 wget
 plexapi
