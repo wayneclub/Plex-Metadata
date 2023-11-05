@@ -40,7 +40,8 @@ class BaseService(metaclass=ABCMeta):
         )
 
         self.default_language = config.metadata['default-language']
-        self.metadata = config.metadata[self.source]
+        self.metadata = config.metadata[self.source] if self.source in config.metadata else {
+        }
 
         self.config = args.config
 
@@ -131,7 +132,7 @@ class BaseService(metaclass=ABCMeta):
                 if season_search:
                     title = season_search.group(1)
                     season_index = int(season_search.group(2)) if season_search.group(
-                        2).isdigit else int(cn2an(season_search.group(2)))
+                        2).isdigit() else int(cn2an(season_search.group(2)))
                 else:
                     season_index = re.search(r'(.+?)( )*(\d+)$', title)
                     if season_index:

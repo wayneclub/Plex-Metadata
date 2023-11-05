@@ -201,6 +201,7 @@ def main() -> None:
                             show.season(title.season).episode(
                                 title.episode).uploadPoster(filepath=title.episode_poster)
                             os.remove(title.episode_poster)
+                    log.info(" + Updated Plex Metadata")
             else:
                 if title.poster:
                     posters.add(title.poster)
@@ -223,6 +224,8 @@ def main() -> None:
                         })
                     if args.replace_poster and check_url_exist(title.poster, service.session):
                         movie.uploadPoster(url=title.poster)
+
+                    log.info(" + Updated Plex Metadata")
 
         if args.download_poster:
             log.info(" + Downloading Posters")

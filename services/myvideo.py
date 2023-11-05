@@ -22,9 +22,6 @@ class MyVideo(BaseService):
 
     def get_titles(self) -> Union[Title, list[Title]]:
         titles = []
-        if '/details/0/' in self.url or 'seriesType=0' in self.url:
-            self.movie = True
-
         res = self.session.get(url=self.url, timeout=10)
         if res.ok:
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -38,13 +35,13 @@ class MyVideo(BaseService):
                 release_year = meta.text
                 break
 
-        for meta in soup.find_all('script', type='application/ld+json'):
-            if 'VideoObject' not in meta.text:
-                data = orjson.loads(meta.text)
-                break
-
+        data = orjson.loads(soup.find_all(
+            'script', type='application/ld+json')[2].text)
         if not data:
             self.log.exit(f" - Failed to get title: {self.url}")
+
+        if data.get('@type') == 'Movie':
+            self.movie = True
 
         title = data['name'].replace('預告', '').replace(' 搶先版', '').strip()
         content_rating = re.search(r'"rating": \'(.+)\'', res.text)
@@ -108,17 +105,16 @@ class MyVideo(BaseService):
         if res.ok:
             soup = BeautifulSoup(res.text, 'html.parser')
             for episode in soup.find_all('span', class_='episodeIntro'):
-                synopsis = episode.find('blockquote').text
                 poster = episode.find_previous_sibling(
                     'span').find('img')['src']
-                episode = episode.find('a')
-                episode_search = re.search(r'第(\d+)集', episode.text)
-                if episode_search and not '預告' in episode.text:
+                title = episode.find('a')
+                episode_search = re.search(r'第(\d+)集', title.text)
+                if episode_search and not '預告' in title.text:
                     episodes.append({
                         'index': int(episode_search.group(1)),
-                        'id': os.path.basename(episode['href']),
-                        'name': episode.text.split('【')[-1].replace('】', '').strip(),
-                        'synopsis': synopsis,
+                        'id': os.path.basename(title['href']),
+                        'name': title.text.split('【')[-1].replace('】', '').strip(),
+                        'synopsis': episode.find('blockquote').text,
                         'poster': poster
                     })
         else:

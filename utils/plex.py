@@ -47,7 +47,7 @@ class Plex(object):
         elif len(lib) == 1:
             lib = lib[0]
         else:
-            log.exit(f"plex找不到{title}，請附上正確標題")
+            log.exit(f"plex找不到 {title}，請附上正確標題")
 
         return lib
 
