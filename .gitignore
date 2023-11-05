@@ -25,7 +25,7 @@ downloads/
 *.webp
 *.torrent
 raw.json
-cookies*.txt
+cookies/*_cookies.txt
 summary.txt
 test.py
 my_credential.json

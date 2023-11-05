@@ -25,6 +25,7 @@ class Service:
     LINETV = 'LineTV'
     MEWATCH = 'meWATCH'
     MYVIDEO = 'MyVideo'
+    NETFLIX = 'Netflix'
     NOWE = 'NowE'
     NOWPLAYER = 'NowPlayer'
     VIKI = 'Viki'

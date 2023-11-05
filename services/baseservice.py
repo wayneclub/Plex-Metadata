@@ -5,14 +5,18 @@
 This module is default service
 """
 from __future__ import annotations
+from http.cookiejar import MozillaCookieJar
+import html
 import logging
+import os
+from pathlib import Path
 import re
 from abc import ABCMeta, abstractmethod
-from typing import Union
+from typing import Optional, Union
 from opencc import OpenCC
 import requests
 import ssl
-from configs.config import config, user_agent
+from configs.config import config, directories, user_agent, cookies
 from objects.titles import Title
 from utils import Logger
 from cn2an import cn2an
@@ -63,8 +67,11 @@ class BaseService(metaclass=ABCMeta):
         self.session = requests.Session()
         self.session.mount('https://', TLSAdapter())
         self.session.headers = {
-            'user-agent': user_agent
+            'User-Agent': user_agent
         }
+        if self.source in cookies:
+            self.cookies = self.get_cookie_jar()
+            self.session.cookies.update(self.cookies)
 
         proxy = args.proxy or next(iter(self.GEOFENCE), None)
         if proxy:
@@ -100,7 +107,7 @@ class BaseService(metaclass=ABCMeta):
 
         if len("".join(i for i in proxy if not i.isdigit())) == 2:  # e.g. ie, ie12, us1356
             proxy = get_proxy(
-                region=proxy, geofence=self.GEOFENCE, platform=self.platform)
+                region=proxy, geofence=self.GEOFENCE, platform=self.source)
 
         if proxy:
             if "://" not in proxy:
@@ -110,6 +117,30 @@ class BaseService(metaclass=ABCMeta):
             self.logger.info(" + Set Proxy")
         else:
             self.logger.info(" + Proxy was skipped as current region matches")
+
+    def get_cookie_jar(self, required: str = None) -> Optional[MozillaCookieJar]:
+        """ Get profile's cookies as Mozilla Cookie Jar if available. """
+
+        cookie_file = Path(directories.cookies /
+                           cookies[self.source])
+
+        if cookie_file.is_file():
+            cookie_jar = MozillaCookieJar(cookie_file)
+            cookie_file.write_text(html.unescape(
+                cookie_file.read_text("utf8")), "utf8")
+            cookie_jar.load(ignore_discard=True, ignore_expires=True)
+
+            if required and required not in str(cookie_jar):
+                os.remove(cookie_file)
+                self.log.exit(
+                    " - Missing \"%s\" in %s. Please login to streaming services and renew cookies...",
+                    required,
+                    os.path.basename(cookie_file))
+
+            return cookie_jar
+        else:
+            self.log.exit(
+                f" - Please put {os.path.basename(cookie_file)} in {directories.cookies}")
 
     def get_title_and_season_index(self, title: str) -> tuple(str, int):
         """

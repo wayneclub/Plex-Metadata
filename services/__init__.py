@@ -16,6 +16,7 @@ from services.hbogoasia import HBOGOAsia
 from services.iqiyi import IQIYI
 from services.kktv import KKTV
 from services.myvideo import MyVideo
+from services.netflix import Netflix
 
 service_map = [
     {
@@ -67,5 +68,10 @@ service_map = [
         'name': Service.MYVIDEO,
         'class': MyVideo,
         'domain': 'myvideo.net.tw'
+    },
+    {
+        'name': Service.NETFLIX,
+        'class': Netflix,
+        'domain': 'netflix.com'
     }
 ]

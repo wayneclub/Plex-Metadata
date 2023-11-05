@@ -1,3 +1,4 @@
+from __future__ import annotations
 from encodings import utf_8
 import json
 import sys
@@ -5,10 +6,12 @@ import re
 import os
 import logging
 from time import time
+from typing import Union
 import orjson
 import requests
 from bs4 import BeautifulSoup
 from constants import Service
+from objects import Title
 from services.baseservice import BaseService
 from utils.cookies import Cookies
 from utils.helper import download_file, driver_init, multi_thread_download, plex_find_lib, text_format
@@ -18,18 +21,25 @@ from utils.subtitle import convert_subtitle
 
 
 class Netflix(BaseService):
+    """
+    Service code for Netflix streaming service (https://www.netflix.com).
+
+    \b
+    Authorization: Cookies
+    """
+
     def __init__(self, args):
         super().__init__(args)
         self.logger = logging.getLogger(__name__)
+        self.title: str = ''
+        # self.credential = self.config.credential(Service.NETFLIX)
+        # self.cookies = Cookies(self.credential)
 
-        self.credential = self.config.credential(Service.NETFLIX)
-        self.cookies = Cookies(self.credential)
+        # self.metadata_language = self.credential['metadata_language']
 
-        self.metadata_language = self.credential['metadata_language']
-
-        self.driver = ''
-        self.netflix_id = ''
-        self.build_id = ''
+        # self.driver = ''
+        # self.netflix_id = ''
+        self.build_id: str = ''
 
         self.api = {
             'metadata_1': 'https://www.netflix.com/nq/website/memberapi/{build_id}/metadata?movieid={netflix_id}&imageFormat=webp&withSize=true&materialize=true&_=1641798218310',
@@ -37,11 +47,51 @@ class Netflix(BaseService):
             'trailer': 'https://www.netflix.com/playapi/cadmium/manifest/1?reqAttempt=1&reqName=manifest&clienttype=akira&uiversion=v9b6798ed&browsername=safari&browserversion=15.4.0&osname=mac&osversion=10.15.7'
         }
 
-    def get_build_id(self, cookies):
+    def get_titles(self) -> Union[Title, list[Title]]:
+        # if '/movies' in self.url:
+        #     self.movie = True
+        if 'webcache' in self.url:
+            print(self.url)
+            # self.driver.get(self.url)
+            # html_page = BeautifulSoup(self.driver.page_source, 'lxml')
+            # change_poster_only = False
+            # if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', self.url):
+            #     change_poster_only = True
+            # if 'sg-zh' in self.url and self.metadata_language == 'zh-Hant':
+            #     self.get_static_metadata(
+            #         html_page, change_poster_only, translate=True)
+            # else:
+            #     self.get_static_metadata(html_page, change_poster_only)
+        else:
+            netflix_id = re.findall(
+                r'(title\/|watch\/|browse.*\?.*jbv=|search.*\?.*jbv=)(\d+)', self.url.lower())
+            if not netflix_id:
+                self.log.exit("Netflix id not found: %s", self.url)
+
+            self.title = netflix_id[0][-1]
+            self.logger.debug("netflix_id: %s", netflix_id)
+
+            cookies = self.session.cookies.get_dict()
+            if cookies.get('BUILD_IDENTIFIER'):
+                self.build_id = cookies.get('BUILD_IDENTIFIER')
+            else:
+                self.build_id = self.get_build_id()
+                # self.cookies.save_cookies(cookies, self.build_id)
+
+            url = self.api['metadata_1'].format(
+                build_id=self.build_id, netflix_id=self.title)
+
+            data = self.shakti_api(url)
+            self.logger.debug("Metadata: %s", data)
+            print(data)
+
+    def get_build_id(self):
+        """ Get BUILD_IDENTIFIER from cookies """
+
         headers = {
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
-            "User-Agent": self.user_agent,
+            "User-Agent": self.session.headers.get('User-Agent'),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-Mode": "navigate",
@@ -50,7 +100,7 @@ class Netflix(BaseService):
         }
 
         res = self.session.get(
-            url="https://www.netflix.com/browse", headers=headers, cookies=cookies)
+            url="https://www.netflix.com/browse", headers=headers, timeout=10)
 
         if res.ok:
             build_regex = re.search(
@@ -66,6 +116,8 @@ class Netflix(BaseService):
             sys.exit(1)
 
     def shakti_api(self, url):
+        """ Get metadata from shakti api """
+
         headers = {
             "Accept": "*/*",
             "Accept-Encoding": "gzip, deflate, br",
@@ -76,7 +128,7 @@ class Netflix(BaseService):
             "Pragma": "no-cache",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
-            "User-Agent": self.user_agent,
+            "User-Agent": self.session.headers.get('User-Agent'),
             "X-Netflix.browserName": "Chrome",
             "X-Netflix.browserVersion": "98",
             "X-Netflix.clientType": "akira",
@@ -85,25 +137,23 @@ class Netflix(BaseService):
             "X-Netflix.osVersion": "10.15.7"
         }
 
-        cookies = self.cookies.get_cookies()
-
-        resp = requests.get(
-            url=url, headers=headers, cookies=cookies
+        resp = self.session.get(
+            url=url, headers=headers, timeout=10
         )
 
         if resp.ok:
             return resp.json()
         elif resp.status_code == 401:
             self.logger.warning("401 Unauthorized, cookies is invalid.")
-            os.remove(self.credential['cookies_file'])
-            sys.exit(-1)
+            # os.remove(self.credential['cookies_file'])
+            # sys.exit(-1)
         elif resp.text.strip() == "":
             self.logger.error(
                 "title is not available in your Netflix region.")
             sys.exit(-1)
         else:
-            if os.path.exists(self.credential["cookies_file"]):
-                os.remove(self.credential["cookies_file"])
+            # if os.path.exists(self.credential["cookies_file"]):
+            #     os.remove(self.credential["cookies_file"])
             self.logger.warning(
                 "Error getting metadata: Cookies expired\nplease fetch new cookies.txt"
             )

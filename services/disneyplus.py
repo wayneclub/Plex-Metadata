@@ -8,7 +8,7 @@ from services.baseservice import BaseService
 
 class DisneyPlus(BaseService):
     """
-    Service code for Disney's Disney+ streaming service (https://disneyplus.com).
+    Service code for Disney+ streaming service (https://disneyplus.com).
 
     \b
     Authorization: None
