@@ -124,7 +124,8 @@ def main() -> None:
 
             if title.type == Title.Types.TV:
                 if title.season_synopsis and title.episode == 1:
-                    log.info(f"Season {title.season}: {title.season_synopsis}")
+                    log.info(
+                        (title.season_name if title.season_name else f'Season {title.season}') + f': {title.season_synopsis}')
 
                 log.info(
                     f"{title.name} S{(title.season or 0):02}E{(title.episode or 0):02}{' - ' + title.episode_name if title.episode_name else ''}")

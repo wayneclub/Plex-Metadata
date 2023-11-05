@@ -48,42 +48,58 @@ class Netflix(BaseService):
         }
 
     def get_titles(self) -> Union[Title, list[Title]]:
-        # if '/movies' in self.url:
-        #     self.movie = True
-        if 'webcache' in self.url:
-            print(self.url)
-            # self.driver.get(self.url)
-            # html_page = BeautifulSoup(self.driver.page_source, 'lxml')
-            # change_poster_only = False
-            # if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', self.url):
-            #     change_poster_only = True
-            # if 'sg-zh' in self.url and self.metadata_language == 'zh-Hant':
-            #     self.get_static_metadata(
-            #         html_page, change_poster_only, translate=True)
-            # else:
-            #     self.get_static_metadata(html_page, change_poster_only)
+        titles = []
+        metadata = self.get_metadata()
+        extra = self.get_extra()
+
+        if metadata["type"] != "show":
+            self.movie = True
+        title = metadata['title']
+        synopsis = metadata["synopsis"]
+        poster = next(img['url']
+                      for img in metadata['boxart'] if img['w'] == 426)
+        background = next(
+            img['url'] for img in metadata['storyart'] if img['w'] == 1920)
+        self.get_extra_poster(poster=poster,
+                              background=background)
+        if self.movie:
+            titles.append(Title(
+                id_=self.title,
+                type_=Title.Types.MOVIE,
+                name=title,
+                year=metadata["year"],
+                synopsis=synopsis,
+                poster=poster,
+                background=background,
+                source=self.source,
+                service_data=metadata
+            ))
         else:
-            netflix_id = re.findall(
-                r'(title\/|watch\/|browse.*\?.*jbv=|search.*\?.*jbv=)(\d+)', self.url.lower())
-            if not netflix_id:
-                self.log.exit("Netflix id not found: %s", self.url)
-
-            self.title = netflix_id[0][-1]
-            self.logger.debug("netflix_id: %s", netflix_id)
-
-            cookies = self.session.cookies.get_dict()
-            if cookies.get('BUILD_IDENTIFIER'):
-                self.build_id = cookies.get('BUILD_IDENTIFIER')
-            else:
-                self.build_id = self.get_build_id()
-                # self.cookies.save_cookies(cookies, self.build_id)
-
-            url = self.api['metadata_1'].format(
-                build_id=self.build_id, netflix_id=self.title)
-
-            data = self.shakti_api(url)
-            self.logger.debug("Metadata: %s", data)
-            print(data)
+            season_synopsis_list = []
+            for season in extra.findAll('div', class_='season'):
+                season_synopsis_list.append(season.find(
+                    'p', class_='season-synopsis').get_text(strip=True))
+            for index, season in enumerate(metadata['seasons']):
+                for episode in season['episodes']:
+                    titles.append(Title(
+                        id_=self.title,
+                        type_=Title.Types.TV,
+                        name=title,
+                        synopsis=synopsis,
+                        poster=poster,
+                        background=background,
+                        season=season['seq'],
+                        season_name=season['title'] if title != season['title'] else '',
+                        season_synopsis=season_synopsis_list[index] if season_synopsis_list else '',
+                        episode=episode['seq'],
+                        episode_name=episode['title'],
+                        episode_synopsis=episode['synopsis'],
+                        episode_poster=next(
+                            img['url'] for img in episode['stills'] if img['w'] == 1920),
+                        source=self.source,
+                        service_data=episode
+                    ))
+        return titles
 
     def get_build_id(self):
         """ Get BUILD_IDENTIFIER from cookies """
@@ -108,14 +124,12 @@ class Netflix(BaseService):
             if build_regex:
                 return build_regex.group(1)
             else:
-                self.logger.error(
-                    "Can't get BUILD_IDENTIFIER from the cookies you saved from the browser...")
-                sys.exit(1)
+                self.log.exit(
+                    " - Can't get BUILD_IDENTIFIER from the cookies you saved from the browser...")
         else:
-            self.logger.error(res.text)
-            sys.exit(1)
+            self.log.exit(res.text)
 
-    def shakti_api(self, url):
+    def shakti_api(self, url: str):
         """ Get metadata from shakti api """
 
         headers = {
@@ -137,29 +151,73 @@ class Netflix(BaseService):
             "X-Netflix.osVersion": "10.15.7"
         }
 
-        resp = self.session.get(
+        res = self.session.get(
             url=url, headers=headers, timeout=10
         )
-
-        if resp.ok:
-            return resp.json()
-        elif resp.status_code == 401:
-            self.logger.warning("401 Unauthorized, cookies is invalid.")
+        if res.ok:
+            return res.json()
+        elif res.status_code == 401:
+            self.log.exit(
+                " - Invalid cookies. (401 Unauthorized)")
             # os.remove(self.credential['cookies_file'])
-            # sys.exit(-1)
-        elif resp.text.strip() == "":
-            self.logger.error(
-                "title is not available in your Netflix region.")
-            sys.exit(-1)
+        elif res.text.strip() == "":
+            self.log.exit(
+                " - Title is not available in your Netflix region.")
         else:
             # if os.path.exists(self.credential["cookies_file"]):
             #     os.remove(self.credential["cookies_file"])
-            self.logger.warning(
-                "Error getting metadata: Cookies expired\nplease fetch new cookies.txt"
+            self.log.exit(
+                " - Cookies expired!"
             )
-            sys.exit(-1)
 
-    def get_metadata(self, data, html_page):
+    def get_metadata(self) -> dict:
+        """
+        Obtain Metadata information about a title by it's ID.
+        :param title_id: Title's ID.
+        :returns: Title Metadata.
+        """
+        if 'webcache' in self.url:
+            print(self.url)
+            # self.driver.get(self.url)
+            # html_page = BeautifulSoup(self.driver.page_source, 'lxml')
+            # change_poster_only = False
+            # if not re.search(r'\/(sg-zh|hk|tw|mo)\/title', self.url):
+            #     change_poster_only = True
+            # if 'sg-zh' in self.url and self.metadata_language == 'zh-Hant':
+            #     self.get_static_metadata(
+            #         html_page, change_poster_only, translate=True)
+            # else:
+            #     self.get_static_metadata(html_page, change_poster_only)
+        else:
+            content_id = re.findall(
+                r'(title\/|watch\/|browse.*\?.*jbv=|search.*\?.*jbv=)(\d+)', self.url.lower())
+            if not content_id:
+                self.log.exit("Netflix id not found: %s", self.url)
+
+            self.title = content_id[0][-1]
+            cookies = self.session.cookies.get_dict()
+            if cookies.get('BUILD_IDENTIFIER'):
+                self.build_id = cookies.get('BUILD_IDENTIFIER')
+            else:
+                self.build_id = self.get_build_id()
+                # self.cookies.save_cookies(cookies, self.build_id)
+
+            url = self.config['endpoints']['website'].format(
+                build_id=self.build_id, id=self.title)
+
+            return self.shakti_api(url)['video']
+
+    def get_extra(self) -> dict:
+        """ Get extra metadata """
+        res = requests.get(self.config['endpoints']['title'].format(
+            region=self.metadata['region'] or self.config['region'],
+            id=self.title), timeout=10)
+        if res.ok:
+            return BeautifulSoup(res.text, 'html.parser')
+        else:
+            self.log.exit("Failed to load title: %s", res.text)
+
+    def get_metadatas(self, data, html_page):
         title = data['title']
 
         if data['type'] == 'show':
@@ -271,8 +329,10 @@ class Netflix(BaseService):
                     show.uploadArt(url=movie_background)
 
     def get_extra_poster(self, poster, background):
-        url = self.api['metadata_2'].format(
-            build_id=self.build_id, netflix_id=self.netflix_id, language=self.metadata_language)
+        """ Get extra poster and background """
+
+        url = self.config['endpoints']['shakti'].format(
+            build_id=self.build_id, id=self.title, language='en_us')
         data = self.shakti_api(url)['video']
 
         extra_poster = next(
@@ -628,7 +688,7 @@ class Netflix(BaseService):
             self.driver.get(self.url)
             html_page = BeautifulSoup(self.driver.page_source, 'lxml')
             # print(data)
-            self.get_metadata(data['video'], html_page)
+            self.get_metadatas(data['video'], html_page)
 
         if 'additionalVideos' in self.driver.page_source:
             self.logger.info("\nDownload trailer:")

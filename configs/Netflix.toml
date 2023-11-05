@@ -1,0 +1,11 @@
+region = 'us'
+
+[endpoints]
+title = 'https://www.netflix.com/{region}/title/{id}'
+website = 'https://www.netflix.com/nq/website/memberapi/{build_id}/metadata?movieid={id}&imageFormat=webp&withSize=true&materialize=true&_=1641798218310'
+shakti = 'https://www.netflix.com/api/shakti/{build_id}/metadata?movieid={id}&isWatchlistEnabled=false&isShortformEnabled=false&isVolatileBillboardsEnabled=false&drmSystem=widevine&languages={language}&imageFormat=webp'
+trailer = 'https://www.netflix.com/playapi/cadmium/manifest/1?reqAttempt=1&reqName=manifest&clienttype=akira&uiversion=v9b6798ed&browsername=safari&browserversion=15.4.0&osname=mac&osversion=10.15.7'
+# website = 'https://www.netflix.com/nq/website/memberapi/{build_id}/pathEvaluator'
+# manifest = 'https://www.netflix.com/msl/playapi/cadmium/manifest/1?reqAttempt=1&reqName=prefetch/manifest'
+# # manifest = 'https://www.netflix.com/msl/playapi/cadmium/logblob/1?reqAttempt=1&reqPriority=0&reqName=logblob'
+# licence = 'https://www.netflix.com/nq/msl_v1/cadmium/pbo_licenses/^1.0.0/router'
