@@ -1,0 +1,13 @@
+[endpoints]
+episodes = 'https://pcw-api.iq.com/api/v2/episodeListSource/{album_id}?platformId=3&modeCode={mode_code}&langCode={lang_code}&deviceId={device_id}&endOrder={end_order}&startOrder={start_order}'
+meta = 'https://meta.video.iqiyi.com'
+
+[dash]
+bid = '600'                  # 1080p: 600 720p: 500 480p: 300
+src = '01011021010010000000'
+pt = '0'
+k_ft1 = '143486267424900'
+k_ft4 = '34361311236'
+k_ft7 = '4'
+k_ft5 = '16777217'
+ut = '100058'                # 100058, 100104 (0: only 720p)

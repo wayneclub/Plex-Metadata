@@ -1,91 +1,93 @@
+from __future__ import annotations
 import re
-import logging
+from typing import Union
 import orjson
+from objects.titles import Title
 from services.baseservice import BaseService
-from utils.helper import plex_find_lib, text_format
-from utils.dictionary import convert_chinese_number
 
 
 class IQIYI(BaseService):
+    """
+    Service code for the iQIYI streaming service (https://www.iq.com/).
+
+    \b
+    Authorization: None
+    """
+
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
 
-    def get_metadata(self, data):
-        title = data['videoAlbumInfo']['name']
-        season_search = re.search(r'(.+)第(.+)季', title)
-        if season_search:
-            title = season_search.group(1).strip()
-            season_index = int(convert_chinese_number(
-                season_search.group(2)))
-        else:
-            season_index = 1
-
-        show_synopsis = text_format(data['videoAlbumInfo']['desc'])
-        show_poster = re.sub(r'(.+)_\d+_\d+\.webp', 'https:\\1_2200_3000.webp',
-                             data['videoAlbumInfo']['schemaAlbumImage'])
-        self.logger.debug(data['videoAlbumInfo'])
-
-        print(f"\n{title}\n{show_synopsis}\n{show_poster}")
-        if not self.print_only:
-            show = plex_find_lib(self.plex, 'show', self.plex_title, title)
-
-            if season_index == 1:
-                show.edit(**{
-                    "summary.value": show_synopsis,
-                    "summary.locked": 1,
-                })
-
-            show.season(season_index).edit(**{
-                "title.value": f'第 {season_index} 季',
-                "title.locked": 1,
-            })
-
-            if self.replace_poster:
-                if season_index == 1:
-                    show.uploadPoster(url=show_poster)
-                show.season(season_index).uploadPoster(url=show_poster)
-
-        episode_list = []
-        if 'cacheAlbumList' in data and '1' in data['cacheAlbumList'] and len(data['cacheAlbumList']['1']) > 0:
-            episode_list = data['cacheAlbumList']['1']
-        elif 'play' in data and 'cachePlayList' in data['play'] and '1' in data['play']['cachePlayList'] and len(data['play']['cachePlayList']['1']) > 0:
-            episode_list = data['play']['cachePlayList']['1']
-
-        for episode in episode_list:
-            if 'payMarkFont' in episode and episode['payMarkFont'] == 'Preview':
-                break
-            episode_regex = re.search(r'第(\d+)集', episode['name'])
-            episode_index = int(episode_regex.group(1))
-            episode_poster = re.sub(r'(.+)_\d+_\d+\.(webp|jpg)', 'https:\\1_1920_1080.webp',
-                                    episode['imgUrl'])
-
-            episode_title = f'第 {episode_index} 集'
-            if not self.print_only and re.search(r'第 [0-9]+ 集', episode_title) and re.search(r'[\u4E00-\u9FFF]', show.season(season_index).episode(episode_index).title) and not re.search(r'^[剧第]([0-9 ]+)集$', show.season(season_index).episode(episode_index).title):
-                episode_title = show.season(
-                    season_index).episode(episode_index).title
-
-            print(f"\n第 {season_index} 季第 {episode_index} 集\n{episode_poster}")
-
-            if not self.print_only:
-                show.season(season_index).episode(episode_index).edit(**{
-                    "title.value": episode_title,
-                    "title.locked": 1,
-                })
-
-                if self.replace_poster:
-                    show.season(season_index).episode(
-                        episode_index).uploadPoster(url=episode_poster)
-
-    def main(self):
+    def get_titles(self) -> Union[Title, list[Title]]:
+        titles = []
         if 'play/' in self.url:
-            id = re.search(
+            content_id = re.search(
                 r'https://www.iq.com/play/.+\-([^-]+)\?lang=.+', self.url)
-            if not id:
-                id = re.search(r'https://www.iq.com/play/([^-]+)', self.url)
-            self.url = f'https://www.iq.com/album/{id.group(1)}?lang=zh_tw'
-        res = self.session.get(self.url)
+            if not content_id:
+                content_id = re.search(
+                    r'https://www.iq.com/play/([^-]+)', self.url)
+            self.url = f'https://www.iq.com/album/{content_id.group(1)}'
+
+        res = self.session.get(url=self.url, timeout=10)
         if res.ok:
             match = re.search(r'({\"props\":{.*})', res.text)
-            data = orjson.loads(match.group(1))
-            self.get_metadata(data['props']['initialState']['album'])
+            if not match:
+                self.log.exit(f" - Failed to get title: {self.url}")
+
+            data = orjson.loads(match.group(1))['props']
+            mode_code = data['initialProps']['pageProps']['modeCode']
+            lang_code = data['initialProps']['pageProps']['langCode']
+            data = data['initialState']['album']['videoAlbumInfo']
+            if data['videoType'] == 'singleVideo':
+                self.movie = True
+        else:
+            self.log.exit(res.text)
+
+        title = data['name'].strip()
+        release_year = data['year']
+        synopsis = data['desc'].strip()
+        poster = re.sub(r'(.+)_\d+_\d+\.webp',
+                        'https:\\1_2200_3000.webp', data['schemaAlbumImage'])
+        if self.movie:
+            titles.append(Title(
+                id_=data['qipuId'],
+                type_=Title.Types.MOVIE,
+                name=title,
+                year=release_year,
+                synopsis=synopsis,
+                poster=poster,
+                source=self.source
+            ))
+        else:
+            title, season_index = self.get_title_and_season_index(title)
+            for episode in self.get_episodes(pages=data['totalPageRange'], album_id=data['albumId'], mode_code=mode_code, lang_code=lang_code):
+                if 'payMarkFont' in episode and episode['payMarkFont'] == 'Preview':
+                    break
+                if 'order' in episode:
+                    episode_index = int(episode['order'])
+                    titles.append(Title(
+                        id_=episode['qipuId'],
+                        type_=Title.Types.TV,
+                        name=title,
+                        synopsis=synopsis,
+                        poster=poster,
+                        season=season_index,
+                        episode=episode_index,
+                        episode_poster=re.sub(r'(.+)\.(webp|jpg)', '\\1_1920_1080.webp',
+                                              episode['albumWebpPic']).replace('http:', 'https:'),
+                        source=self.source
+                    ))
+        return titles
+
+    def get_episodes(self, pages: list, album_id: str, mode_code: str, lang_code: str) -> list:
+        """Get episodes"""
+        episodes = []
+        for page in pages:
+            episodes_url = self.config['endpoints']['episodes'].format(
+                album_id=album_id, mode_code=mode_code, lang_code=lang_code, device_id=self.session.cookies.get_dict().get('QC005'), end_order=page['to'], start_order=page['from'])
+            res = self.session.get(url=episodes_url, timeout=10)
+            if res.ok:
+                data = res.json()
+                episodes += data['data']['epg']
+            else:
+                self.log.error(res.text)
+        return episodes
