@@ -13,7 +13,7 @@ region = 'TW' # US, TW, HK
 region = 'TW' # US, TW, HK
 
 [metadata.Netflix]
-region = 'TW' # US, TW, HK
+region = 'tw' # us, tw, hk
 
 # Default cookies dir: Plex-MetaData/cookies
 #         downloads dir: Plex-MetaData/downloads
@@ -26,13 +26,13 @@ downloads = ''
 User-Agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36'
 
 [cookies]
-Netflix = 'netflix.com_cookies.txt'
+Netflix = 'www.netflix.com_cookies.txt'
 
 # Plex server settings
 [plex]
 # Method 1.
-baseurl = ''
-token = ''   # Finding the Token (https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
+baseurl = 'http://wayneclub.com:32400'
+token = 'esv-PKDb98tLjUa_Bpny'         # Finding the Token (https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
 # Method 2.
 username = ''
 password = ''
