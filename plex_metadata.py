@@ -35,7 +35,7 @@ def main() -> None:
     parser.add_argument('-r', '--replace', dest='replace',
                         nargs='?', const=True, help='Replace metadata')
 
-    parser.add_argument('-rp', '--replace_poster', dest='replace_poster',
+    parser.add_argument('-rp', '--replace-poster', dest='replace_poster',
                         nargs='?', const=True, help='Replace poster')
 
     parser.add_argument('-s',
@@ -47,8 +47,8 @@ def main() -> None:
                         dest='episode',
                         help="download episode [0-9]")
 
-    parser.add_argument('-dl', '--download_poster', dest='download_poster',
-                        nargs='?', const=True, help='Download poster')
+    parser.add_argument('-dl', '--download-poster', dest='download_poster',
+                        nargs='?', const=True, help='Download posters')
 
     parser.add_argument('-p',
                         '--proxy',
