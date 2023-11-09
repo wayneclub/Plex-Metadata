@@ -36,8 +36,8 @@ class GooglePlay(BaseService):
                 'model': 'ChromeCDM-Mac-x86-64',
                 'product': 'generic',
                 'apptype': '2',
-                "cr": "TW",  # US
-                "lr": "zh-TW",  # en-US
+                "cr": self.metadata['region'] or self.config['region'],
+                "lr": self.metadata['locale'] or self.config['locale'],
             },
             headers=self.session.headers,
             cookies=self.session.cookies.get_dict(),

@@ -62,12 +62,12 @@ class Amazon(BaseService):
         titles = []
         for asin in asins:
             res = self.session.get(
-                url="https://www.primevideo.com/gp/video/api/getDetailPage",
+                url=self.config['endpoints']['title'],
                 params={
                     "titleID": asin,
                     "isElcano": "1",
                     "sections": "Btf",
-                    "language": "zh_TW",
+                    "language": self.metadata['locale'] or self.config['locale'],
                 },
                 headers={
                     "Accept": "application/json"

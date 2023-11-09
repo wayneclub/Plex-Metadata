@@ -24,10 +24,13 @@ class AppleTVPlus(BaseService):
         if '/movie' in self.url:
             self.movie = True
 
+        if self.metadata['locale']:
+            self.config['device']['locale'] = self.metadata['locale']
+
         res = self.session.get(
             url=self.config['endpoints']['title'].format(
                 content_type='movies' if self.movie else "shows", id=self.title),
-            params=self.config["device"],
+            params=self.config['device'],
             timeout=10
         )
         if res.ok:

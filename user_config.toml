@@ -3,6 +3,9 @@
 [metadata]
 default-language = 'zh-Hant' # en/zh-Hant
 
+[metadata.Amazon]
+locale = 'zh_TW' # en_US, zh_TW
+
 [metadata.AppleTVPlus]
 locale = 'zh-TW' # en-US, zh-TW
 
@@ -10,7 +13,8 @@ locale = 'zh-TW' # en-US, zh-TW
 region = 'TW' # US, TW, HK
 
 [metadata.GooglePlay]
-region = 'TW' # US, TW, HK
+region = 'TW'    # US, TW
+locale = 'zh-TW' # en-US, zh-TW
 
 [metadata.Netflix]
 region = 'tw' # us, tw, hk
