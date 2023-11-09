@@ -25,6 +25,11 @@ service_map = [
         'domain': 'amazon.com',
     },
     {
+        'name': Service.Amazon,
+        'class': Amazon,
+        'domain': 'primevideo.com',
+    },
+    {
         'name': Service.APPLETVPLUS,
         'class': AppleTVPlus,
         'domain': 'tv.apple.com',

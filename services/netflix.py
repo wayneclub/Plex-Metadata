@@ -60,8 +60,8 @@ class Netflix(BaseService):
                       for img in metadata['boxart'] if img['w'] == 426)
         background = next(
             img['url'] for img in metadata['storyart'] if img['w'] == 1920)
-        self.get_extra_poster(poster=poster,
-                              background=background)
+        # self.get_extra_poster(poster=poster,
+        #                       background=background)
         if self.movie:
             titles.append(Title(
                 id_=self.title,

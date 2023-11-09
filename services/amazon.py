@@ -1,123 +1,119 @@
-import logging
+from __future__ import annotations
 import re
 from typing import Union
 import orjson
-from urllib.parse import urlsplit
 from objects.titles import Title
-from utils.helper import plex_find_lib, text_format
+from utils.collections import as_list
 from services.baseservice import BaseService
 
 
 class Amazon(BaseService):
+    """
+    Service code for the Amazon/Primevideo streaming service (https://www.primevideo.com/).
+
+    \b
+    Authorization: None
+    """
+
     def __init__(self, args):
         super().__init__(args)
-        self.logger = logging.getLogger(__name__)
+        self.pv = True if 'primevideo.com' in self.url else False
 
-        self.api = {
-            'season': 'https://www.amazon.com/-/zh_TW/gp/video/detail/{season_key}/ref=atv_dp_season_select_s{season_index}?language=zh_TW'
-        }
+    def get_asin(self, title: str) -> str:
+        """
+        Get asin from url
+        """
+        asin = re.search(r'(detail|dp)\/([0-9a-zA-Z-.]+)', title)
+        return asin.group(2) if asin else title
 
     def get_titles(self) -> Union[Title, list[Title]]:
-        if 'atv_nb_lcl_zh_TW' not in self.url:
-            self.url = re.sub(r'(.+ref=)(.+)',
-                              '\\1atv_nb_lcl_zh_TW?language=zh_TW', self.url)
         res = self.session.get(self.url)
         if res.ok:
             match = re.findall(
-                r'<script type=\"text/template\">(\{\"props\":\{\"state\".+)</script>', res.text)
+                r'<script type=\"text/template\">(\{\"props\":\{.*?\"state\".+)</script>', res.text)
             if match:
-                data = orjson.loads(match[0])
+                data = orjson.loads(match[0])['props']['state']
             else:
                 self.log.exit(
-                    f" - Failed to get title: {self.url}")
+                    f" - Title ID '{self.url}' could not be found.")
         else:
-            self.log.exit(1)
+            self.log.exit(res.text)
 
-        print(data)
-
-    def get_metadata(self, data):
         title_id = data['pageTitleId']
-        title_info = data['detail']['headerDetail'][title_id]
-        title = title_info['title']
-        if title_info['entityType'] == 'TV Show':
-            show_synopsis = text_format(title_info['synopsis'])
-
-            print(f"\n{title}\n{show_synopsis}")
-
-            if not self.print_only:
-                show = plex_find_lib(self.plex, 'show', self.plex_title, title)
-                show.edit(**{
-                    "summary.value": show_synopsis,
-                    "summary.locked": 1,
-                })
-
+        asins = set()
+        if title_id in data['seasons']:
             for season in data['seasons'][title_id]:
-                season_url = f"https://{urlsplit(self.url).netloc}{season['seasonLink']}?language=zh_TW"
-                self.logger.debug(season_url)
-                season_id = season['seasonId']
+                if self.pv:
+                    asins.add(self.get_asin(season['seasonLink']))
+                else:
+                    asins.add(data['self'][season['seasonId']]['gti'])
+        else:
+            if self.pv:
+                asins.add(self.get_asin(self.url))
+            else:
+                asins.add(data['self'][title_id]['gti'])
 
-                res = self.session.get(season_url)
+        return self.get_titles_prime(asins)
 
-                if res.ok:
-                    match = re.findall(
-                        r'<script type=\"text/template\">(\{\"props\":\{\"state\".+)</script>', res.text)
-                    if match:
-                        season_data = orjson.loads(match[-1])['props']['state']
+    def get_titles_prime(self, asins: set) -> list[Title]:
+        """
+        Get list of Titles for a primevideo.com (Prime) ASIN.
+        """
+        titles = []
+        for asin in asins:
+            res = self.session.get(
+                url="https://www.primevideo.com/gp/video/api/getDetailPage",
+                params={
+                    "titleID": asin,
+                    "isElcano": "1",
+                    "sections": "Btf",
+                    "language": "zh_TW",
+                },
+                headers={
+                    "Accept": "application/json"
+                },
+                timeout=10
+            )
+            res.raise_for_status()
+            data = res.json()
+            data = data["widgets"]
+            synopsis = ''
+            season_synopsis = ''
+            poster = ''
+            if data["pageContext"]["subPageType"] == "Movie":
+                self.movie = True
+                cards = data["productDetails"]
+                synopsis = cards['detail']['synopsis']
+                poster = cards['detail']['images']['packshot']
+            else:
+                cards = data["titleContent"][0]["cards"]
+                cards = list(filter(
+                    lambda episode: episode['detail']['episodeNumber'] > 0, cards))
+                season_synopsis = data["productDetails"]['detail']['synopsis']
+                if data["productDetails"]['detail']['seasonNumber'] == 1:
+                    synopsis = season_synopsis
 
-                        season_title_info = season_data['detail']['btfMoreDetails'][season_id]
+            cards = [x["detail"]
+                     for x in as_list(cards)]
+            product_details = data["productDetails"]["detail"]
 
-                        season_index = season_title_info['seasonNumber']
-                        season_title = f'第 {season_index} 季'
-                        season_synopsis = text_format(
-                            season_title_info['synopsis'])
-                        season_background = season_title_info['images']['heroshot']
-
-                        print(
-                            f"\n{season_title}\n{season_synopsis}\n{season_background}")
-
-                        if season_index and not self.print_only:
-                            show.season(season_index).edit(**{
-                                "title.value": season_title,
-                                "title.locked": 1,
-                                "summary.value": season_synopsis,
-                                "summary.locked": 1,
-                            })
-                            if self.replace_poster:
-                                show.season(season_index).uploadArt(
-                                    url=season_background)
-
-                        episode_keys = season_data['collections'][season_id][0]['titleIds']
-
-                        for episode_key in episode_keys:
-                            episode = season_data['detail']['detail'][episode_key]
-                            episode_index = episode['episodeNumber']
-                            episode_title = episode['title']
-                            episode_synopsis = episode['synopsis']
-                            episode_poster = episode['images']['packshot']
-
-                            print(
-                                f"\n{season_title}第 {episode_index} 集：{episode_title}\n{episode_synopsis}\n{episode_poster}")
-
-                            if season_index and episode_index and not self.print_only:
-                                show.season(season_index).episode(episode_index).edit(**{
-                                    "title.value": episode_title,
-                                    "title.locked": 1,
-                                    "summary.value": episode_synopsis,
-                                    "summary.locked": 1,
-                                })
-                                if self.replace_poster:
-                                    show.season(season_index).episode(
-                                        episode_index).uploadPoster(url=episode_poster)
-
-    def main(self):
-        if 'atv_nb_lcl_zh_TW' not in self.url:
-            self.url = re.sub(r'(.+ref=)(.+)',
-                              '\\1atv_nb_lcl_zh_TW?language=zh_TW', self.url)
-            self.logger.debug(self.url)
-        res = self.session.get(self.url)
-        if res.ok:
-            match = re.findall(
-                r'<script type=\"text/template\">(\{\"props\":\{\"state\".+)</script>', res.text)
-            if match:
-                data = orjson.loads(match[0])
-                self.get_metadata(data['props']['state'])
+            for title in cards:
+                titles.append(Title(
+                    id_=asin,
+                    type_=Title.Types.MOVIE if title["titleType"] == "movie" else Title.Types.TV,
+                    name=product_details.get(
+                        "parentTitle") or product_details["title"],
+                    year=title.get(
+                        "releaseYear") or product_details["releaseYear"],
+                    synopsis=synopsis,
+                    poster=poster,
+                    season=product_details.get("seasonNumber"),
+                    season_synopsis=season_synopsis,
+                    episode=title.get("episodeNumber"),
+                    episode_name=title.get("title"),
+                    episode_synopsis=title.get("synopsis"),
+                    episode_poster=title.get("images").get("covershot"),
+                    source=self.source,
+                    service_data=dict(**title, titleId=title["catalogId"])
+                ))
+        return titles
