@@ -110,7 +110,7 @@ class Amazon(BaseService):
                     season=product_details.get("seasonNumber"),
                     season_synopsis=season_synopsis,
                     episode=title.get("episodeNumber"),
-                    episode_name=title.get("title"),
+                    episode_name=title.get("title").split('：')[-1],
                     episode_synopsis=title.get("synopsis"),
                     episode_poster=title.get("images").get("covershot"),
                     source=self.source,
