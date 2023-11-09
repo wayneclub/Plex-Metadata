@@ -31,8 +31,8 @@ Netflix = 'www.netflix.com_cookies.txt'
 # Plex server settings
 [plex]
 # Method 1.
-baseurl = 'http://wayneclub.com:32400'
-token = 'esv-PKDb98tLjUa_Bpny'         # Finding the Token (https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
+baseurl = ''
+token = ''   # Finding the Token (https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
 # Method 2.
 username = ''
 password = ''
