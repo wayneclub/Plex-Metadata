@@ -80,7 +80,7 @@ class Title:
     def is_wanted(self, wanted_season: list, wanted_episode: list) -> bool:
         if self.type != Title.Types.TV or (not wanted_season and not wanted_episode):
             return True
-        if not wanted_season or self.season in wanted_episode:
+        if not wanted_season or self.season in wanted_season:
             if not wanted_episode or self.episode in wanted_episode:
                 return f"{self.season}x{self.episode}"
 
