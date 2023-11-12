@@ -4,7 +4,7 @@
 
 **NON-COMMERCIAL USE ONLY**
 
-Plex-Metadata supports auto-fetching metadata and posters from multiple streaming services, such as Amazon, Apple TV+, CatchPlay, Disney+, FridayVideo, Google Play, HamiVideo, HBOGOAsia, iQIYI, KKTV, MyVideo, Netflix, etc.
+Plex-Metadata supports auto-fetching metadata and posters from multiple streaming services, such as Amazon, Apple TV+, CatchPlay, Disney+, FridayVideo, Google Play, HamiVideo, HBOGOAsia, iQIYI, KKTV, MyVideo, Netflix, Viu, etc.
 
 ## DESCRIPTION
 

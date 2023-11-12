@@ -1,7 +1,7 @@
 from urllib.parse import quote
 
 import requests
-from configs.config import config
+from configs.config import config, user_agent
 from utils import Logger
 
 
@@ -26,7 +26,7 @@ class tmdb:
             url += f"&{'primary_release_year' if is_movie else 'first_air_date_year'}={release_year}"
         url += f"&api_key={self.api_key}"
         res = requests.get(
-            url, headers={'User-Agent': config.user_agent}, timeout=10)
+            url, headers={'User-Agent': user_agent}, timeout=10)
         if res.ok:
             return res.json()
         self.log.exit(res.text)
@@ -37,7 +37,7 @@ class tmdb:
         """
         url = f"https://api.themoviedb.org/3/tv/{series_id}?api_key={self.api_key}"
         res = requests.get(
-            url, headers={'User-Agent': config.user_agent}, timeout=1)
+            url, headers={'User-Agent': user_agent}, timeout=1)
         if res.ok:
             return res.json()
         self.log.exit(res.text)

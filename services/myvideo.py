@@ -16,6 +16,7 @@ class MyVideo(BaseService):
     \b
     Authorization: None
     """
+    GEOFENCE = ["tw"]
 
     def __init__(self, args):
         super().__init__(args)
@@ -35,19 +36,25 @@ class MyVideo(BaseService):
                 release_year = meta.text
                 break
 
-        data = orjson.loads(soup.find_all(
-            'script', type='application/ld+json')[2].text)
+        json = soup.find_all(
+            'script', type='application/ld+json')
+        data = next(
+            (metadata.text for metadata in json if 'TVSeries' in metadata.text), next(
+                (metadata.text for metadata in json if 'Movie' in metadata.text), None))
         if not data:
             self.log.exit(f" - Failed to get title: {self.url}")
 
+        data = orjson.loads(data)
         if data.get('@type') == 'Movie':
             self.movie = True
 
-        title = data['name'].replace('預告', '').replace(' 搶先版', '').strip()
+        title = data['name']
         content_rating = re.search(r'"rating": \'(.+)\'', res.text)
         if content_rating:
             content_rating = content_rating.group(1)
         synopsis = data['description'].replace(f'《{title}》', '')
+        title = data['name'].replace('預告', '').replace(
+            '搶先版', '').replace('數位珍藏版', '').strip()
         poster = data['image']
         if self.movie:
             movie_id = os.path.basename(self.url)

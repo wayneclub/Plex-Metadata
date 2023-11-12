@@ -1,0 +1,19 @@
+app_version = '3.10.0'
+
+[endpoints]
+titles = 'https://api-gateway-global.viu.com/api/mobile'
+manifest = 'https://api-gateway-global.viu.com/api/playback/distribute'
+token = 'https://api-gateway-global.viu.com/api/auth/token'
+
+[language_flag_id]
+zh_hk = 1
+zh_cn = 2
+en = 3
+th = 4
+ms = 7
+
+[area_id]
+hk = 1
+sg = 2
+th = 4
+my = 1001
